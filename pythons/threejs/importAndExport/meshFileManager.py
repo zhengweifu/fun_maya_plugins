@@ -4,7 +4,7 @@ import maya.OpenMaya as om
 import maya.cmds as cmds
 import struct
 
-class ImportAndExport(object):
+class MeshFileManager(object):
     '''初始化方法'''
     def __init__(self):
         self.out_uv = True
@@ -50,7 +50,7 @@ class ImportAndExport(object):
                 uv = {'u' : [], 'v' : []}
                 for j in range(i * 2):
                     f.seek(point, 0)
-                    if not (j%2):
+                    if not (j % 2):
                         uv['u'].append(struct.unpack('f', f.read(4))[0])
                     else:
                         uv['v'].append(struct.unpack('f', f.read(4))[0])
@@ -370,7 +370,6 @@ class ImportAndExport(object):
             elif dagPath.hasFn(om.MFn.kMesh):
                 self.setDatas(dagPath)
 
-
     '''输出保存被选中的mesh文件'''
     def writeSelected(self):
         selected = om.MSelectionList()
@@ -407,19 +406,19 @@ class ImportAndExport(object):
         if cmds.window(window_name, ex=True):
             cmds.deleteUI(window_name)
         
-        window = cmds.window(window_name, title="Mesh File Manager", widthHeight=(300, 500))
+        window = cmds.window(window_name, title="Project File Manager", widthHeight=(300, 500))
         cmds.columnLayout(adj=True)
         tabs = cmds.tabLayout()
         import_column = cmds.columnLayout(adj=True)
-        cmds.button(label="import", c=self._import)
+        cmds.button(label="import mesh", c=self._import)
         cmds.setParent('..')
         export_column = cmds.columnLayout(adj=True)
         self.uv_cb = cmds.checkBox(label='export uvs', value=True)
         self.normal_cb = cmds.checkBox(label='export normals', value=True)
-        cmds.button(label="export all", c=self._exportAll)
-        cmds.button(label="export selected", c=self._exportSelected)
+        cmds.button(label="export all meshes", c=self._exportAll)
+        cmds.button(label="export selected meshes", c=self._exportSelected)
         cmds.setParent('..')
-        cmds.tabLayout(tabs, edit=True, tabLabel=((import_column, "Import Meshes"), (export_column, "Export Meshes")))
+        cmds.tabLayout(tabs, edit=True, tabLabel=((import_column, "Import"), (export_column, "Export")))
         cmds.showWindow(window)
 
     def _import(self, argas):
@@ -444,16 +443,22 @@ class ImportAndExport(object):
             self.write(mesh_paths[0])
             self.init()
 
-    def _export(self):
-        multipleFilters = "Mesh (*.mesh)"
-        mesh_paths = cmds.fileDialog2(fileFilter=multipleFilters, dialogStyle=2)
+    def _exportProject(self, argas):
+        project_paths = self._export("Project (*.project)")
+        if project_paths:
+            self.writeAll()
+            print self.setDatas
+            self.init()
+
+    def _export(self, filter = "Mesh (*.mesh)"):
+        paths = cmds.fileDialog2(fileFilter=filter, dialogStyle=2)
         self.out_uv = cmds.checkBox(self.uv_cb, q = True, v=True)
         self.out_normal = cmds.checkBox(self.normal_cb, q = True, v=True)
-        return mesh_paths
+        return paths
 
 def main():
-    imExport = ImportAndExport();
-    imExport.ui()
+    mfm = MeshFileManager();
+    mfm.ui()
 
 if __name__ == '__main__':
     main();
