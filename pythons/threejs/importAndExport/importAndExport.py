@@ -2,7 +2,8 @@
 import maya.api.OpenMaya as nm
 import maya.OpenMaya as om
 import maya.cmds as cmds
-import meshFileManager, common
+import meshFileManager, common, uuid, time, json, os, shutil
+import pymel.core as pm
 reload(common)
 class ImportAndExport(object):
     '''初始化方法'''
@@ -10,12 +11,172 @@ class ImportAndExport(object):
         self.meshFileManager = meshFileManager.MeshFileManager();
         self.out_uv = True
         self.out_normal = True
+        self.init()
+
+    def init(self):
+        self.geometries = []
+        self.materials = []
+        self.materialName2UUID = {}
+        self.textures = []
+        self.textureName2UUID = {}
+        self.faceMaterials = []
+        self.objectTree = {'type': 'Group', 'children': []}
+
+    def intoTexture(self, copyFolder, materialObject, material, srcProp, distProp):
+        # print material.attr(srcProp).inputs()
+        _inputs = material.attr(srcProp).inputs()
+        if len(_inputs) > 0:
+            _input = _inputs[0]
+            print _input.type()
+            if _input.type() == 'bump2d':
+                _cinputs = _input.bumpValue.inputs()
+                if len(_cinputs) > 0:
+                    if _input.getAttr('bumpInterp') > 0:
+                        distProp = 'normalMap'
+                    else:
+                        materialObject['bumpScale'] = _input.getAttr('bumpDepth')
+                        distProp = 'bumpMap'
+                    _input = _cinputs[0]
+            if _input.type() == 'file':
+                _textureUrl = _input.getAttr('fileTextureName')
+                if os.path.isfile(_textureUrl):
+                    if _input not in self.textureName2UUID:
+                        if not os.path.isdir(copyFolder):
+                            os.makedirs(copyFolder)
+                        shutil.copy(_textureUrl, copyFolder)
+                        _uuidTex = str(uuid.uuid3(uuid.NAMESPACE_DNS, `time.time()`))
+                        materialObject[distProp] = _uuidTex
+                        self.textureName2UUID[_input] = _uuidTex
+                        # print ;
+                        _textureObject = {
+                           'uuid': _uuidTex, 
+                           'url': './textures/' + os.path.basename(_textureUrl)
+                        }
+
+                        self.textures.append(_textureObject)
+                    else:
+                        materialObject[distProp] = self.textureName2UUID[_input]
+
+    def loopFind(self, tObject, treeParent):
+        _type = tObject.apiType()
+        # print tObject.hasFn(om.MFn.kTransform) and tObject.hasFn(om.MFn.kMesh)
+        if _type == om.MFn.kTransform:
+            _transform = om.MFnTransform(tObject)
+            # print _transform.name(), tObject.hasFn(om.MFn.kMesh)
+            if 'children' not in treeParent:
+                treeParent['children'] = []
+
+            _object = {'type': 'Group', 'uuid': str(uuid.uuid3(uuid.NAMESPACE_DNS, `time.time()`))}
+            _matrix = _transform.transformation().asMatrix()
+            if _matrix != om.MMatrix.identity:
+               _object['matrix'] = common.Common.MMatrixToArray(_matrix)
+
+            treeParent['children'].append(_object)
+
+            _childCount = _transform.childCount()
+            for i in range(_childCount):
+                _child = _transform.child(i)
+                self.loopFind(_child, _object)
+        elif _type == om.MFn.kMesh:
+            _uuidGeo = str(uuid.uuid3(uuid.NAMESPACE_DNS, `time.time()`))
+
+            # _object = {'type': 'Mesh', 'geometry': _uuidGeo, 'material': ''}
+            # if 'children' not in treeParent:
+            #     treeParent['children'] = []
+            treeParent['type'] = 'Mesh'
+            treeParent['geometry'] = _uuidGeo
+
+            _mesh =  om.MFnMesh(tObject)
+            _dagPath = om.MDagPath()
+            om.MDagPath.getAPathTo(tObject, _dagPath)
+            self.meshFileManager.setDatas(_dagPath)
+            # print _dagPath.fullPathName()
+            if _mesh.hasUniqueName():
+                _afName = _mesh.name()
+            else:
+                _afName = _dagPath.fullPathName().replace('|', '_')[1:]
+            treeParent['name'] = _afName
+            _afPath = '%s.mesh'%_afName
+            _projectFolder = os.path.dirname(self.projectPath) # This is folder for project file
+            _meshFolder = _projectFolder + '/meshes/' # This is folder for mesh file
+            # Create non-existent folders
+            if not os.path.isdir(_meshFolder):
+                os.makedirs(_meshFolder)
+
+            # Save a .mesh file
+            self.meshFileManager.write(_meshFolder + _afPath)
+            self.meshFileManager.init()
+
+            self.geometries.append({'uuid': _uuidGeo, 'url': './meshes/' + _afPath});
+
+            _numInstances = _mesh.parentCount()
+            _materials = []
+            for i in range(_numInstances):
+                _shaders = om.MObjectArray()
+                _faceIndices = om.MIntArray()
+                _mesh.getConnectedShaders(i, _shaders, _faceIndices)
+                for j in range(_shaders.length()):
+                    _connections = om.MPlugArray()
+                    _shaderGroup = om.MFnDependencyNode(_shaders[j])
+                    _shaderPlug = _shaderGroup.findPlug("surfaceShader")
+                    _shaderPlug.connectedTo(_connections, True, False)
+
+                    for k in range(_connections.length()):
+                        _materials.append(_connections[k].node())
+            if len(_materials) == 1:
+                _material = _materials[0]
+                _materialName = om.MFnDependencyNode(_material).name()
+                if _materialName not in self.materialName2UUID:
+                    _uuidMat = str(uuid.uuid3(uuid.NAMESPACE_DNS, `time.time()`))
+                    treeParent['material'] = _uuidMat
+                    self.materialName2UUID[_materialName] = _uuidMat
+                    _pMaterial = pm.PyNode(_materialName);
+                    _materialObject = {
+                        'uuid': _uuidMat, 
+                        'type': 'MeshLambertMaterial',
+                        'color': list(_pMaterial.getAttr('color')),
+                        'emissive': list(_pMaterial.getAttr('incandescence'))
+                    }
+
+                    self.materials.append(_materialObject)
+
+                    self.intoTexture(_projectFolder + '/textures/', _materialObject, _pMaterial, 'color', 'map')
+                    self.intoTexture(_projectFolder + '/textures/', _materialObject, _pMaterial, 'incandescence', 'emissiveMap')
+                    self.intoTexture(_projectFolder + '/textures/', _materialObject, _pMaterial, 'normalCamera', 'bumpMap')
+
+                    # _inputs = _pMaterial.inputs()
+
+                    # for _input in _inputs:
+                    #     if _input.type() == 'file':
+                    #         _textureUrl = _input.getAttr('fileTextureName')
+                    #         if os.path.isfile(_textureUrl):
+                    #             if _input not in self.textureName2UUID:
+                    #                 _textureFolder = _projectFolder + '/textures/'
+                    #                 if not os.path.isdir(_textureFolder):
+                    #                     os.makedirs(_textureFolder)
+                    #                 shutil.copy(_textureUrl, _textureFolder)
+                    #                 _uuidTex = str(uuid.uuid3(uuid.NAMESPACE_DNS, `time.time()`))
+                    #                 self.textureName2UUID[_input] = _uuidTex
+                    #                 # print ;
+                    #                 _textureObject = {
+                    #                    'uuid': _uuidTex, 
+                    #                    'url': './textures/' + os.path.basename(_textureUrl)
+                    #                 }
+
+                    #                 self.textures.append(_textureObject)
+                    #             else:
+                    #                 _materialObject['map'] = self.textureName2UUID[_input]
+                else:
+                    treeParent['material'] = self.materialName2UUID[_materialName]
+                
+            # treeParent['children'].append(_object)
+
 
     '''输出保存project文件'''           
-    def writeProject(self):
+    def writeProject(self, url, isPutty = True):
         extraTypeNames = ['textManip2D', 'xformManip', 'translateManip', 'cubeManip']
         extraNames = ['groundPlane_transform', 'persp', 'top', 'front', 'side']
-        mTransfroms = []
+        tObjects = []
         dagIterator = om.MItDag(om.MItDag.kBreadthFirst, om.MFn.kInvalid);
         while not dagIterator.isDone():
             dagPath = om.MDagPath()
@@ -23,15 +184,41 @@ class ImportAndExport(object):
             dagIterator.next() # iterator 跳到下一个
             if dagPath.apiType() == om.MFn.kWorld:
                 for i in range(dagPath.childCount()):
-                    if dagPath.child(i).hasFn(om.MFn.kTransform):
-                        transform = om.MFnTransform(dagPath.child(i))
-                        if transform.typeName() not in extraTypeNames and transform.name() not in extraNames:
-                            print transform.name()
-                            mTransfroms.append(transform)
+                    _child = dagPath.child(i)
+                    if _child.hasFn(om.MFn.kTransform):
+                        _transform = om.MFnTransform(_child)
+                        if _transform.typeName() not in extraTypeNames and _transform.name() not in extraNames:
+                            # print _transform.name()
+                            tObjects.append(_child)
                 break
 
-        for mTransform in mTransfroms:
-            print mTransform.child(0).apiType()
+        self.projectPath = url
+
+        for tObject in tObjects:
+            self.loopFind(tObject, self.objectTree)
+            # print mTransform.child(0).apiType()
+            # 
+        _outputTree = {
+            'information': {
+                'author': 'fun.zheng'
+            },
+            'geometries': self.geometries,
+            'materials': self.materials,
+            'textures': self.textures,
+            'object': self.objectTree
+        }
+        if isPutty:
+            _outputJson = json.dumps(_outputTree, sort_keys = True, indent = 4, separators = (',', ': '))
+        else:
+            _outputJson = json.dumps(_outputTree,separators = (',', ':'))
+
+        _f = open(url, 'w')
+        try:
+            _f.write(_outputJson)
+        finally:
+            _f.close()
+        # print _outputJson
+        self.init()
 
     '''ui part'''
     def ui(self):
@@ -58,7 +245,7 @@ class ImportAndExport(object):
     def _exportProject(self, argas):
         # project_paths = self._export("Project (*.project)")
         # if project_paths:
-        self.writeProject()
+        self.writeProject('/zwf/test/test.project')
 
     def _export(self, filter = "Mesh (*.mesh)"):
         paths = cmds.fileDialog2(fileFilter=filter, dialogStyle=2)
