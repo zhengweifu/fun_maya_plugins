@@ -123,8 +123,8 @@ class ImportAndExport(object):
 
                     for k in range(_connections.length()):
                         _materials.append(_connections[k].node())
-            if len(_materials) == 1:
-                _material = _materials[0]
+            
+            for _material in _materials:
                 _materialName = om.MFnDependencyNode(_material).name()
                 if _materialName not in self.materialName2UUID:
                     _uuidMat = str(uuid.uuid3(uuid.NAMESPACE_DNS, `time.time()`))
@@ -144,28 +144,7 @@ class ImportAndExport(object):
                     self.intoTexture(_projectFolder + '/textures/', _materialObject, _pMaterial, 'incandescence', 'emissiveMap')
                     self.intoTexture(_projectFolder + '/textures/', _materialObject, _pMaterial, 'normalCamera', 'bumpMap')
 
-                    # _inputs = _pMaterial.inputs()
 
-                    # for _input in _inputs:
-                    #     if _input.type() == 'file':
-                    #         _textureUrl = _input.getAttr('fileTextureName')
-                    #         if os.path.isfile(_textureUrl):
-                    #             if _input not in self.textureName2UUID:
-                    #                 _textureFolder = _projectFolder + '/textures/'
-                    #                 if not os.path.isdir(_textureFolder):
-                    #                     os.makedirs(_textureFolder)
-                    #                 shutil.copy(_textureUrl, _textureFolder)
-                    #                 _uuidTex = str(uuid.uuid3(uuid.NAMESPACE_DNS, `time.time()`))
-                    #                 self.textureName2UUID[_input] = _uuidTex
-                    #                 # print ;
-                    #                 _textureObject = {
-                    #                    'uuid': _uuidTex, 
-                    #                    'url': './textures/' + os.path.basename(_textureUrl)
-                    #                 }
-
-                    #                 self.textures.append(_textureObject)
-                    #             else:
-                    #                 _materialObject['map'] = self.textureName2UUID[_input]
                 else:
                     treeParent['material'] = self.materialName2UUID[_materialName]
                 
@@ -245,7 +224,7 @@ class ImportAndExport(object):
     def _exportProject(self, argas):
         # project_paths = self._export("Project (*.project)")
         # if project_paths:
-        self.writeProject('/zwf/test/test.project')
+        self.writeProject('d:/documents/maya/outpro/test.project')
 
     def _export(self, filter = "Mesh (*.mesh)"):
         paths = cmds.fileDialog2(fileFilter=filter, dialogStyle=2)
