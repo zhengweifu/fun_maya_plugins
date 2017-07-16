@@ -255,16 +255,29 @@ class MeshFileManager(object):
                 self.normals.extend([normals[enormal_idx].x, normals[enormal_idx].y, normals[enormal_idx].z])
 
 
+        # Get shader index of face
+        _shaders = om.MObjectArray()
+        _faceIndices = om.MIntArray()
+        fnMesh.getConnectedShaders(0, _shaders, _faceIndices)
+        # print _faceIndices
+
         faceType = self.getFaceType(isTriangle, hasMaterial, hasFaceUvs, hasFaceVertexUvs, hasFaceNormals, hasFaceVertexNormals, hasFaceColors, hasFaceVertexColors)
 
         # face info
+        faceIndex = 0
         polyonIterator = om.MItMeshPolygon(dagPath)
         while not polyonIterator.isDone():
-            polygonVertexCount = polyonIterator.polygonVertexCount();
+            polygonVertexCount = polyonIterator.polygonVertexCount()
+            shaderIndex = _faceIndices[faceIndex]
             for vtx in range(polygonVertexCount):
                 if vtx < polygonVertexCount - 2:
                     vtx += 1
+                    if shaderIndex > 0:
+                        hasMaterial = True
+                        faceType = self.getFaceType(isTriangle, hasMaterial, hasFaceUvs, hasFaceVertexUvs, hasFaceNormals, hasFaceVertexNormals, hasFaceColors, hasFaceVertexColors)
                     face = [faceType]
+                    if shaderIndex > 0:
+                        face.append(shaderIndex)
                     face.extend([polyonIterator.vertexIndex(0)+vertex_offset, polyonIterator.vertexIndex(vtx)+vertex_offset, polyonIterator.vertexIndex(vtx+1)+vertex_offset])
                     if hasFaceVertexUvs:
                         _index = 0
@@ -282,6 +295,7 @@ class MeshFileManager(object):
                         face.extend([polyonIterator.normalIndex(0)+normal_offset, polyonIterator.normalIndex(vtx)+normal_offset, polyonIterator.normalIndex(vtx+1)+normal_offset])
                     self.faces.extend(face);
             polyonIterator.next()
+            faceIndex += 1
         # print "vertices", self.vertices
         # print "normals", self.normals
         # print "uvs", self.uvs

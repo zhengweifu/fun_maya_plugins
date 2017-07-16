@@ -5,6 +5,7 @@ import maya.cmds as cmds
 import meshFileManager, common, uuid, time, json, os, shutil
 import pymel.core as pm
 reload(common)
+reload(meshFileManager)
 class ImportAndExport(object):
     '''初始化方法'''
     def __init__(self):
@@ -110,6 +111,7 @@ class ImportAndExport(object):
             self.geometries.append({'uuid': _uuidGeo, 'url': './meshes/' + _afPath});
 
             _numInstances = _mesh.parentCount()
+
             _materials = []
             for i in range(_numInstances):
                 _shaders = om.MObjectArray()
@@ -123,12 +125,13 @@ class ImportAndExport(object):
 
                     for k in range(_connections.length()):
                         _materials.append(_connections[k].node())
-            
+            _useMaterials = []
             for _material in _materials:
                 _materialName = om.MFnDependencyNode(_material).name()
                 if _materialName not in self.materialName2UUID:
                     _uuidMat = str(uuid.uuid3(uuid.NAMESPACE_DNS, `time.time()`))
-                    treeParent['material'] = _uuidMat
+                    # treeParent['material'] = _uuidMat
+                    _useMaterials.append(_uuidMat)
                     self.materialName2UUID[_materialName] = _uuidMat
                     _pMaterial = pm.PyNode(_materialName);
                     _materialObject = {
@@ -138,6 +141,7 @@ class ImportAndExport(object):
                         'emissive': list(_pMaterial.getAttr('incandescence'))
                     }
 
+
                     self.materials.append(_materialObject)
 
                     self.intoTexture(_projectFolder + '/textures/', _materialObject, _pMaterial, 'color', 'map')
@@ -146,7 +150,13 @@ class ImportAndExport(object):
 
 
                 else:
-                    treeParent['material'] = self.materialName2UUID[_materialName]
+                    _useMaterials.append(self.materialName2UUID[_materialName])
+                    # treeParent['material'] = self.materialName2UUID[_materialName]
+            if len(_useMaterials) == 1:
+                treeParent['material'] = _useMaterials[0]
+            elif len(_useMaterials) > 1:
+                treeParent['material'] = _useMaterials
+
                 
             # treeParent['children'].append(_object)
 
@@ -224,7 +234,8 @@ class ImportAndExport(object):
     def _exportProject(self, argas):
         # project_paths = self._export("Project (*.project)")
         # if project_paths:
-        self.writeProject('d:/documents/maya/outpro/test.project')
+        # self.writeProject('d:/documents/maya/outpro/test.project')
+        self.writeProject('/Users/zwf/Documents/zwf/templates/outpro/test.project')
 
     def _export(self, filter = "Mesh (*.mesh)"):
         paths = cmds.fileDialog2(fileFilter=filter, dialogStyle=2)
