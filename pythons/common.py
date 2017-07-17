@@ -42,3 +42,6 @@ class Common(object):
             split.append(sAbs_n_l[i])
 
         return "/".join(split)
+    @classmethod
+    def listMultiplyValue(self, l, v):
+        return [x * v for x in l]

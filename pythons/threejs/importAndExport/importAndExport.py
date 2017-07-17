@@ -2,7 +2,7 @@
 import maya.api.OpenMaya as nm
 import maya.OpenMaya as om
 import maya.cmds as cmds
-import meshFileManager, common, uuid, time, json, os, shutil
+import meshFileManager, common, uuid, time, json, os, shutil, math
 import pymel.core as pm
 reload(common)
 reload(meshFileManager)
@@ -58,8 +58,23 @@ class ImportAndExport(object):
                     else:
                         materialObject[distProp] = self.textureName2UUID[_input]
 
+    def setTransparent(self, param, materialObject, material):
+        _transparency = material.getAttr(param)
+        if _transparency[0] != 0 or _transparency[1] != 0 or _transparency[2] != 0:
+            materialObject['opacity'] = 1 - (_transparency[0] + _transparency[1] + _transparency[2]) / 3
+
+    def getName(self, target, dagPath, isReplace = True):
+        if target.hasUniqueName():
+            return target.name()
+        else:
+            if isReplace:
+                return dagPath.fullPathName().replace('|', '_')[1:]
+            else:
+                return dagPath.fullPathName()
+
     def loopFind(self, tObject, treeParent):
         _type = tObject.apiType()
+        _dagPath = om.MDagPath()
         # print tObject.hasFn(om.MFn.kTransform) and tObject.hasFn(om.MFn.kMesh)
         if _type == om.MFn.kTransform:
             _transform = om.MFnTransform(tObject)
@@ -70,7 +85,7 @@ class ImportAndExport(object):
             _object = {'type': 'Group', 'uuid': str(uuid.uuid3(uuid.NAMESPACE_DNS, `time.time()`))}
             _matrix = _transform.transformation().asMatrix()
             if _matrix != om.MMatrix.identity:
-               _object['matrix'] = common.Common.MMatrixToArray(_matrix)
+                _object['matrix'] = common.Common.MMatrixToArray(_matrix)
 
             treeParent['children'].append(_object)
 
@@ -78,6 +93,33 @@ class ImportAndExport(object):
             for i in range(_childCount):
                 _child = _transform.child(i)
                 self.loopFind(_child, _object)
+        elif _type == om.MFn.kDirectionalLight:
+            _light = om.MFnDirectionalLight(tObject)
+            _color = _light.color()
+            treeParent['name'] = self.getName(_light, _dagPath)
+            treeParent['color'] = [_color[0], _color[1], _color[2]]
+            treeParent['intensity'] = _light.intensity()
+            treeParent['type'] ='DirectionalLight'
+
+        elif _type == om.MFn.kPointLight:
+            _light = om.MFnPointLight(tObject)
+            _color = _light.color()
+            treeParent['name'] = self.getName(_light, _dagPath)
+            treeParent['color'] = [_color[0], _color[1], _color[2]]
+            treeParent['intensity'] = _light.intensity()
+            treeParent['type'] ='PointLight'
+            # _pLight = pm.PyNode(_dagPath.fullPathName())
+
+        elif _type == om.MFn.kSpotLight:
+            _light = om.MFnSpotLight(tObject)
+            _color = _light.color()
+            treeParent['name'] = self.getName(_light, _dagPath)
+            treeParent['color'] = [_color[0], _color[1], _color[2]]
+            treeParent['intensity'] = _light.intensity()
+            treeParent['type'] ='SpotLight'
+            _pLight = pm.PyNode(self.getName(_light, _dagPath, False))
+            treeParent['angle'] = _pLight.getAttr('coneAngle') * math.pi / 180;
+
         elif _type == om.MFn.kMesh:
             _uuidGeo = str(uuid.uuid3(uuid.NAMESPACE_DNS, `time.time()`))
 
@@ -88,14 +130,11 @@ class ImportAndExport(object):
             treeParent['geometry'] = _uuidGeo
 
             _mesh =  om.MFnMesh(tObject)
-            _dagPath = om.MDagPath()
+            
             om.MDagPath.getAPathTo(tObject, _dagPath)
             self.meshFileManager.setDatas(_dagPath)
             # print _dagPath.fullPathName()
-            if _mesh.hasUniqueName():
-                _afName = _mesh.name()
-            else:
-                _afName = _dagPath.fullPathName().replace('|', '_')[1:]
+            _afName = self.getName(_mesh, _dagPath)
             treeParent['name'] = _afName
             _afPath = '%s.mesh'%_afName
             _projectFolder = os.path.dirname(self.projectPath) # This is folder for project file
@@ -136,18 +175,49 @@ class ImportAndExport(object):
                     _pMaterial = pm.PyNode(_materialName);
                     _materialObject = {
                         'uuid': _uuidMat, 
-                        'type': 'MeshLambertMaterial',
-                        'color': list(_pMaterial.getAttr('color')),
-                        'emissive': list(_pMaterial.getAttr('incandescence'))
+                        'color': list(_pMaterial.getAttr('color'))
                     }
 
+                    self.intoTexture(_projectFolder + '/textures/', _materialObject, _pMaterial, 'color', 'map')
+                    _materialType = cmds.objectType(_materialName)
+                    
+                    if _materialType == "surfaceShader":
+                        _materialObject['type'] = "MeshBasicMaterial"
+                        self.setTransparent('outTransparency', _materialObject, _pMaterial)
+                    elif _materialType == "lambert":
+                        _materialObject['type'] = "MeshLambertMaterial"
+                        self.setTransparent('transparency', _materialObject, _pMaterial)
+                        _materialObject['color'] =  common.Common.listMultiplyValue(list(_pMaterial.getAttr('color')), _pMaterial.getAttr('diffuse'))
+                        _materialObject['emissive'] = list(_pMaterial.getAttr('incandescence'))
+                        self.intoTexture(_projectFolder + '/textures/', _materialObject, _pMaterial, 'incandescence', 'emissiveMap')
+                        self.intoTexture(_projectFolder + '/textures/', _materialObject, _pMaterial, 'normalCamera', 'bumpMap')
+                    elif _materialType == "blinn":
+                        _materialObject['type'] = "MeshPhongMaterial"
+                        self.setTransparent('transparency', _materialObject, _pMaterial)
+                        _materialObject['color'] =  common.Common.listMultiplyValue(list(_pMaterial.getAttr('color')), _pMaterial.getAttr('diffuse'))
+                        _materialObject['emissive'] = list(_pMaterial.getAttr('incandescence'))
+                        self.intoTexture(_projectFolder + '/textures/', _materialObject, _pMaterial, 'incandescence', 'emissiveMap')
+                        self.intoTexture(_projectFolder + '/textures/', _materialObject, _pMaterial, 'normalCamera', 'bumpMap')
+                        _materialObject['specularColor'] = common.Common.listMultiplyValue(list(_pMaterial.getAttr('specularColor')), _pMaterial.getAttr('specularRollOff'))
+                        _specularIntersity = _pMaterial.getAttr('eccentricity')
+                        if _specularIntersity == 0:
+                            _specularIntersity = 0.001
+                        _materialObject['shininess'] = 10 / _specularIntersity
+                        self.intoTexture(_projectFolder + '/textures/', _materialObject, _pMaterial, 'specularColor', 'specularMap')
+                        _materialObject['reflectivity'] = _pMaterial.getAttr('reflectivity')
+                    elif _materialType == "phong":
+                        _materialObject['type'] = "MeshPhongMaterial"
+                        self.setTransparent('transparency', _materialObject, _pMaterial)
+                        _materialObject['color'] =  common.Common.listMultiplyValue(list(_pMaterial.getAttr('color')), _pMaterial.getAttr('diffuse'))
+                        _materialObject['emissive'] = list(_pMaterial.getAttr('incandescence'))
+                        self.intoTexture(_projectFolder + '/textures/', _materialObject, _pMaterial, 'incandescence', 'emissiveMap')
+                        self.intoTexture(_projectFolder + '/textures/', _materialObject, _pMaterial, 'normalCamera', 'bumpMap')
+                        _materialObject['specularColor'] = list(_pMaterial.getAttr('specularColor'))
+                        _materialObject['shininess'] = _pMaterial.getAttr('cosinePower')
+                        self.intoTexture(_projectFolder + '/textures/', _materialObject, _pMaterial, 'specularColor', 'specularMap')
+                        _materialObject['reflectivity'] = _pMaterial.getAttr('reflectivity')
 
                     self.materials.append(_materialObject)
-
-                    self.intoTexture(_projectFolder + '/textures/', _materialObject, _pMaterial, 'color', 'map')
-                    self.intoTexture(_projectFolder + '/textures/', _materialObject, _pMaterial, 'incandescence', 'emissiveMap')
-                    self.intoTexture(_projectFolder + '/textures/', _materialObject, _pMaterial, 'normalCamera', 'bumpMap')
-
 
                 else:
                     _useMaterials.append(self.materialName2UUID[_materialName])
@@ -163,7 +233,7 @@ class ImportAndExport(object):
 
     '''输出保存project文件'''           
     def writeProject(self, url, isPutty = True):
-        extraTypeNames = ['textManip2D', 'xformManip', 'translateManip', 'cubeManip']
+        extraTypeNames = ['textManip2D', 'xformManip', 'translateManip', 'cubeManip', 'objectSet']
         extraNames = ['groundPlane_transform', 'persp', 'top', 'front', 'side']
         tObjects = []
         dagIterator = om.MItDag(om.MItDag.kBreadthFirst, om.MFn.kInvalid);
@@ -224,18 +294,19 @@ class ImportAndExport(object):
         export_column = cmds.columnLayout(adj=True)
         self.uv_cb = cmds.checkBox(label='export uvs', value=True)
         self.normal_cb = cmds.checkBox(label='export normals', value=True)
-        cmds.button(label="export all meshes", c=self.meshFileManager._exportAll)
-        cmds.button(label="export selected meshes", c=self.meshFileManager._exportSelected)
+        # cmds.button(label="export all meshes", c=self.meshFileManager._exportAll)
+        # cmds.button(label="export selected meshes", c=self.meshFileManager._exportSelected)
         cmds.button(label="export project", c=self._exportProject)
         cmds.setParent('..')
         cmds.tabLayout(tabs, edit=True, tabLabel=((import_column, "Import"), (export_column, "Export")))
         cmds.showWindow(window)
 
     def _exportProject(self, argas):
-        # project_paths = self._export("Project (*.project)")
-        # if project_paths:
+        project_paths = self._export("Project (*.project)")
+        if project_paths:
+            self.writeProject(project_paths[0])
         # self.writeProject('d:/documents/maya/outpro/test.project')
-        self.writeProject('/Users/zwf/Documents/zwf/templates/outpro/test.project')
+        # self.writeProject('/Users/zwf/Documents/zwf/templates/outpro/test.project')
 
     def _export(self, filter = "Mesh (*.mesh)"):
         paths = cmds.fileDialog2(fileFilter=filter, dialogStyle=2)
