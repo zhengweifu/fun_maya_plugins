@@ -180,25 +180,29 @@ class ImportAndExport(object):
 
                     self.intoTexture(_projectFolder + '/textures/', _materialObject, _pMaterial, 'color', 'map')
                     _materialType = cmds.objectType(_materialName)
-                    
+                    _diffuse = 1.0
+                    _specular = 1.0
                     if _materialType == "surfaceShader":
                         _materialObject['type'] = "MeshBasicMaterial"
                         self.setTransparent('outTransparency', _materialObject, _pMaterial)
                     elif _materialType == "lambert":
                         _materialObject['type'] = "MeshLambertMaterial"
                         self.setTransparent('transparency', _materialObject, _pMaterial)
-                        _materialObject['color'] =  common.Common.listMultiplyValue(list(_pMaterial.getAttr('color')), _pMaterial.getAttr('diffuse'))
+                        _diffuse = _pMaterial.getAttr('diffuse')
+                        _materialObject['color'] =  common.Common.listMultiplyValue(list(_pMaterial.getAttr('color')), _diffuse)
                         _materialObject['emissive'] = list(_pMaterial.getAttr('incandescence'))
                         self.intoTexture(_projectFolder + '/textures/', _materialObject, _pMaterial, 'incandescence', 'emissiveMap')
                         self.intoTexture(_projectFolder + '/textures/', _materialObject, _pMaterial, 'normalCamera', 'bumpMap')
                     elif _materialType == "blinn":
                         _materialObject['type'] = "MeshPhongMaterial"
                         self.setTransparent('transparency', _materialObject, _pMaterial)
-                        _materialObject['color'] =  common.Common.listMultiplyValue(list(_pMaterial.getAttr('color')), _pMaterial.getAttr('diffuse'))
+                        _diffuse = _pMaterial.getAttr('diffuse')
+                        _materialObject['color'] =  common.Common.listMultiplyValue(list(_pMaterial.getAttr('color')), _diffuse)
                         _materialObject['emissive'] = list(_pMaterial.getAttr('incandescence'))
                         self.intoTexture(_projectFolder + '/textures/', _materialObject, _pMaterial, 'incandescence', 'emissiveMap')
                         self.intoTexture(_projectFolder + '/textures/', _materialObject, _pMaterial, 'normalCamera', 'bumpMap')
-                        _materialObject['specularColor'] = common.Common.listMultiplyValue(list(_pMaterial.getAttr('specularColor')), _pMaterial.getAttr('specularRollOff'))
+                        _specular = _pMaterial.getAttr('specularRollOff')
+                        _materialObject['specular'] = common.Common.listMultiplyValue(list(_pMaterial.getAttr('specularColor')), _specular)
                         _specularIntersity = _pMaterial.getAttr('eccentricity')
                         if _specularIntersity == 0:
                             _specularIntersity = 0.001
@@ -208,15 +212,22 @@ class ImportAndExport(object):
                     elif _materialType == "phong":
                         _materialObject['type'] = "MeshPhongMaterial"
                         self.setTransparent('transparency', _materialObject, _pMaterial)
-                        _materialObject['color'] =  common.Common.listMultiplyValue(list(_pMaterial.getAttr('color')), _pMaterial.getAttr('diffuse'))
+                        _diffuse = _pMaterial.getAttr('diffuse')
+                        _materialObject['color'] =  common.Common.listMultiplyValue(list(_pMaterial.getAttr('color')), _diffuse)
                         _materialObject['emissive'] = list(_pMaterial.getAttr('incandescence'))
                         self.intoTexture(_projectFolder + '/textures/', _materialObject, _pMaterial, 'incandescence', 'emissiveMap')
                         self.intoTexture(_projectFolder + '/textures/', _materialObject, _pMaterial, 'normalCamera', 'bumpMap')
-                        _materialObject['specularColor'] = list(_pMaterial.getAttr('specularColor'))
+                        _materialObject['specular'] = list(_pMaterial.getAttr('specularColor'))
                         _materialObject['shininess'] = _pMaterial.getAttr('cosinePower')
                         self.intoTexture(_projectFolder + '/textures/', _materialObject, _pMaterial, 'specularColor', 'specularMap')
                         _materialObject['reflectivity'] = _pMaterial.getAttr('reflectivity')
 
+                    if 'map' in _materialObject:
+                        _materialObject['color'] = [_diffuse, _diffuse, _diffuse]
+
+                    if 'specularMap' in _materialObject:
+                        _materialObject['color'] = [_specular, _specular, _specular]
+                    
                     self.materials.append(_materialObject)
 
                 else:
