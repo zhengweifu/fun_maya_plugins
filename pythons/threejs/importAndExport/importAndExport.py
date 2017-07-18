@@ -15,6 +15,8 @@ class ImportAndExport(object):
         self.init()
 
     def init(self):
+        self.meshFileManager.out_uv = self.out_uv
+        self.meshFileManager.out_normal= self.out_normal
         self.geometries = []
         self.materials = []
         self.materialName2UUID = {}
@@ -23,12 +25,30 @@ class ImportAndExport(object):
         self.faceMaterials = []
         self.objectTree = {'type': 'Group', 'children': []}
 
+    def addNeedAttrs(self, argas):
+        mats = cmds.ls(mat = True)
+        for mat in mats:
+            if not cmds.objExists('%s.side'%mat):
+                cmds.addAttr(mat, ln = 'side', at = 'enum', en='front=0:back=1:double=2')
+            if not cmds.objExists('%s.aoMap'%mat):
+                cmds.addAttr(mat, ln = 'aoMap', at = 'double3')
+                cmds.addAttr(mat, ln = 'aoMapR', at = 'double', p = 'aoMap')
+                cmds.addAttr(mat, ln = 'aoMapG', at = 'double', p = 'aoMap')
+                cmds.addAttr(mat, ln = 'aoMapB', at = 'double', p = 'aoMap')
+                cmds.addAttr(mat, ln = "aoMapIntensity", at = 'double', min = 0, max = 1, dv = 1)
+            if not cmds.objExists('%s.lightMap'%mat):
+                cmds.addAttr(mat, ln = 'lightMap', at = 'double3')
+                cmds.addAttr(mat, ln = 'lightMapR', at = 'double', p = 'lightMap')
+                cmds.addAttr(mat, ln = 'lightMapG', at = 'double', p = 'lightMap')
+                cmds.addAttr(mat, ln = 'lightMapB', at = 'double', p = 'lightMap')
+                cmds.addAttr(mat, ln = "lightMapIntensity", at = 'double', min = 0, max = 1, dv = 1)
+            
     def intoTexture(self, copyFolder, materialObject, material, srcProp, distProp):
         # print material.attr(srcProp).inputs()
         _inputs = material.attr(srcProp).inputs()
         if len(_inputs) > 0:
             _input = _inputs[0]
-            print _input.type()
+            # print _input.type()
             if _input.type() == 'bump2d':
                 _cinputs = _input.bumpValue.inputs()
                 if len(_cinputs) > 0:
@@ -51,7 +71,9 @@ class ImportAndExport(object):
                         # print ;
                         _textureObject = {
                            'uuid': _uuidTex, 
-                           'url': './textures/' + os.path.basename(_textureUrl)
+                           'url': './textures/' + os.path.basename(_textureUrl),
+                           'wrapS': 1000, 
+                           'wrapT' : 1000
                         }
 
                         self.textures.append(_textureObject)
@@ -82,7 +104,15 @@ class ImportAndExport(object):
             if 'children' not in treeParent:
                 treeParent['children'] = []
 
-            _object = {'type': 'Group', 'uuid': str(uuid.uuid3(uuid.NAMESPACE_DNS, `time.time()`))}
+            _object = {
+                'type': 'Group',
+                'name': self.getName(_transform, _dagPath),
+                'uuid': str(uuid.uuid3(uuid.NAMESPACE_DNS, `time.time()`))
+            }
+
+            if not cmds.getAttr('%s.visibility'%self.getName(_transform, _dagPath, False)):
+                _object['visible'] = False
+
             _matrix = _transform.transformation().asMatrix()
             if _matrix != om.MMatrix.identity:
                 _object['matrix'] = common.Common.MMatrixToArray(_matrix)
@@ -174,16 +204,16 @@ class ImportAndExport(object):
                     self.materialName2UUID[_materialName] = _uuidMat
                     _pMaterial = pm.PyNode(_materialName);
                     _materialObject = {
-                        'uuid': _uuidMat, 
-                        'color': list(_pMaterial.getAttr('color'))
+                        'uuid': _uuidMat
                     }
 
-                    self.intoTexture(_projectFolder + '/textures/', _materialObject, _pMaterial, 'color', 'map')
                     _materialType = cmds.objectType(_materialName)
                     _diffuse = 1.0
                     _specular = 1.0
                     if _materialType == "surfaceShader":
                         _materialObject['type'] = "MeshBasicMaterial"
+                        _materialObject['color'] = list(_pMaterial.getAttr('outColor'))
+                        self.intoTexture(_projectFolder + '/textures/', _materialObject, _pMaterial, 'outColor', 'map')
                         self.setTransparent('outTransparency', _materialObject, _pMaterial)
                     elif _materialType == "lambert":
                         _materialObject['type'] = "MeshLambertMaterial"
@@ -191,6 +221,7 @@ class ImportAndExport(object):
                         _diffuse = _pMaterial.getAttr('diffuse')
                         _materialObject['color'] =  common.Common.listMultiplyValue(list(_pMaterial.getAttr('color')), _diffuse)
                         _materialObject['emissive'] = list(_pMaterial.getAttr('incandescence'))
+                        self.intoTexture(_projectFolder + '/textures/', _materialObject, _pMaterial, 'color', 'map')
                         self.intoTexture(_projectFolder + '/textures/', _materialObject, _pMaterial, 'incandescence', 'emissiveMap')
                         self.intoTexture(_projectFolder + '/textures/', _materialObject, _pMaterial, 'normalCamera', 'bumpMap')
                     elif _materialType == "blinn":
@@ -199,6 +230,7 @@ class ImportAndExport(object):
                         _diffuse = _pMaterial.getAttr('diffuse')
                         _materialObject['color'] =  common.Common.listMultiplyValue(list(_pMaterial.getAttr('color')), _diffuse)
                         _materialObject['emissive'] = list(_pMaterial.getAttr('incandescence'))
+                        self.intoTexture(_projectFolder + '/textures/', _materialObject, _pMaterial, 'color', 'map')
                         self.intoTexture(_projectFolder + '/textures/', _materialObject, _pMaterial, 'incandescence', 'emissiveMap')
                         self.intoTexture(_projectFolder + '/textures/', _materialObject, _pMaterial, 'normalCamera', 'bumpMap')
                         _specular = _pMaterial.getAttr('specularRollOff')
@@ -215,6 +247,7 @@ class ImportAndExport(object):
                         _diffuse = _pMaterial.getAttr('diffuse')
                         _materialObject['color'] =  common.Common.listMultiplyValue(list(_pMaterial.getAttr('color')), _diffuse)
                         _materialObject['emissive'] = list(_pMaterial.getAttr('incandescence'))
+                        self.intoTexture(_projectFolder + '/textures/', _materialObject, _pMaterial, 'color', 'map')
                         self.intoTexture(_projectFolder + '/textures/', _materialObject, _pMaterial, 'incandescence', 'emissiveMap')
                         self.intoTexture(_projectFolder + '/textures/', _materialObject, _pMaterial, 'normalCamera', 'bumpMap')
                         _materialObject['specular'] = list(_pMaterial.getAttr('specularColor'))
@@ -227,6 +260,20 @@ class ImportAndExport(object):
 
                     if 'specularMap' in _materialObject:
                         _materialObject['color'] = [_specular, _specular, _specular]
+
+                    # side
+                    if cmds.objExists('%s.side'%_pMaterial) and _pMaterial.getAttr('side') != 0:
+                        _materialObject['side'] = _pMaterial.getAttr('side')
+                    
+                    # light map
+                    if cmds.objExists('%s.lightMapIntensity'%_pMaterial):
+                        self.intoTexture(_projectFolder + '/textures/', _materialObject, _pMaterial, 'lightMap', 'lightMap')
+                        _materialObject['lightMapIntensity'] = _pMaterial.getAttr('lightMapIntensity')
+
+                    # ao map
+                    if cmds.objExists('%s.aoMapIntensity'%_pMaterial):
+                        self.intoTexture(_projectFolder + '/textures/', _materialObject, _pMaterial, 'aoMap', 'aoMap')
+                        _materialObject['aoMapIntensity'] = _pMaterial.getAttr('aoMapIntensity')
                     
                     self.materials.append(_materialObject)
 
@@ -307,6 +354,7 @@ class ImportAndExport(object):
         self.normal_cb = cmds.checkBox(label='export normals', value=True)
         # cmds.button(label="export all meshes", c=self.meshFileManager._exportAll)
         # cmds.button(label="export selected meshes", c=self.meshFileManager._exportSelected)
+        cmds.button(label="add need attrs", c=self.addNeedAttrs)
         cmds.button(label="export project", c=self._exportProject)
         cmds.setParent('..')
         cmds.tabLayout(tabs, edit=True, tabLabel=((import_column, "Import"), (export_column, "Export")))
@@ -316,6 +364,7 @@ class ImportAndExport(object):
         project_paths = self._export("Project (*.project)")
         if project_paths:
             self.writeProject(project_paths[0])
+            print "Export project finish."
         # self.writeProject('d:/documents/maya/outpro/test.project')
         # self.writeProject('/Users/zwf/Documents/zwf/templates/outpro/test.project')
 
