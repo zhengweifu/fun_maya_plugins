@@ -1,0 +1,5 @@
+global proc string baseSubCtrl(){
+    string $cmd = "import createPreLoc as cpl;cpl.createPreLoc()";
+    string $obj = python($cmd);
+    return $obj;
+}

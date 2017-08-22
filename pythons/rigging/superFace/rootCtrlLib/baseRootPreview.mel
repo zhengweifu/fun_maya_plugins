@@ -1,0 +1,312 @@
+global proc string baseRootPreview(){
+createNode transform -n "faceCtrlGrp";
+	addAttr -sn "nts" -ln "notes" -dt "string";
+	setAttr ".nts" -type "string" "SuperFaceMaker";
+createNode transform -n "rootCtrlGrp" -p "faceCtrlGrp";
+	setAttr ".t" -type "double3" 0 -5.5511151231257827e-017 0 ;
+createNode transform -n "faceRoot" -p "rootCtrlGrp";
+	setAttr ".t" -type "double3" 0 -0.40155093941284403 -1.5168361851052152 ;
+createNode locator -n "locatorShape10" -p "faceRoot";
+	setAttr -k off ".v";
+	setAttr ".ove" yes;
+	setAttr ".ovc" 14;
+	setAttr ".los" -type "double3" 0.3 0.3 0.3 ;
+createNode transform -n "jointCtrlGrp" -p "faceCtrlGrp";
+	setAttr ".t" -type "double3" 0 -5.5511151231257827e-017 0 ;
+createNode transform -n "eyeConstructionGrp" -p "jointCtrlGrp";
+createNode transform -n "eyeLocGrp" -p "eyeConstructionGrp";
+createNode transform -n "eye_L_Loc_Grp" -p "eyeLocGrp";
+	setAttr ".t" -type "double3" 0.89507183526524481 0.93486041949708643 1.1778526349061575 ;
+createNode transform -n "eye_L_Loc" -p "eye_L_Loc_Grp";
+createNode locator -n "eye_L_LocShape" -p "eye_L_Loc";
+	setAttr -k off ".v";
+	setAttr ".ove" yes;
+	setAttr ".ovc" 22;
+	setAttr ".los" -type "double3" 0.15 0.15 0.15 ;
+createNode transform -n "Leye_arrow_tail" -p "eye_L_Loc";
+createNode annotationShape -n "Leye_arrow_tailShape" -p "Leye_arrow_tail";
+	setAttr -k off ".v";
+	setAttr ".tmp" yes;
+	setAttr ".txt" -type "string" "";
+createNode pointConstraint -n "Leye_arrow_tail_pointConstraint1" -p "Leye_arrow_tail";
+	addAttr -k true -sn "w0" -ln "faceRootW0" -bt "W000" -dv 1 -min 0 -at "double";
+	setAttr -k on ".nds";
+	setAttr -k off ".v";
+	setAttr -k off ".tx";
+	setAttr -k off ".ty";
+	setAttr -k off ".tz";
+	setAttr -k off ".rx";
+	setAttr -k off ".ry";
+	setAttr -k off ".rz";
+	setAttr -k off ".sx";
+	setAttr -k off ".sy";
+	setAttr -k off ".sz";
+	setAttr ".erp" yes;
+	setAttr ".rst" -type "double3" -0.89507183526524481 0.93646845239131027 -1.9406511591645332 ;
+	setAttr -k on ".w0";
+createNode transform -n "eye_R_Loc_Grp" -p "eyeLocGrp";
+	setAttr ".t" -type "double3" -0.89499999999999857 0.93486041949708698 1.1778526349061571 ;
+createNode transform -n "eye_R_Loc" -p "eye_R_Loc_Grp";
+createNode locator -n "eye_R_LocShape" -p "eye_R_Loc";
+	setAttr -k off ".v";
+	setAttr ".ove" yes;
+	setAttr ".ovc" 22;
+	setAttr ".los" -type "double3" 0.15 0.15 0.15 ;
+createNode transform -n "Reye_arrow_tail" -p "eye_R_Loc";
+createNode annotationShape -n "Reye_arrow_tailShape" -p "Reye_arrow_tail";
+	setAttr -k off ".v";
+	setAttr ".tmp" yes;
+	setAttr ".txt" -type "string" "";
+createNode pointConstraint -n "Reye_arrow_tail_pointConstraint1" -p "Reye_arrow_tail";
+	addAttr -k true -sn "w0" -ln "faceRootW0" -bt "W000" -dv 1 -min 0 -at "double";
+	setAttr -k on ".nds";
+	setAttr -k off ".v";
+	setAttr -k off ".tx";
+	setAttr -k off ".ty";
+	setAttr -k off ".tz";
+	setAttr -k off ".rx";
+	setAttr -k off ".ry";
+	setAttr -k off ".rz";
+	setAttr -k off ".sx";
+	setAttr -k off ".sy";
+	setAttr -k off ".sz";
+	setAttr ".erp" yes;
+	setAttr ".rst" -type "double3" 0.89499999999999869 0.93646845239130971 -1.9406511591645328 ;
+	setAttr -k on ".w0";
+createNode transform -n "chinConstructionGrp" -p "jointCtrlGrp";
+createNode transform -n "chinLocGrp" -p "chinConstructionGrp";
+createNode transform -n "chinLoc01" -p "chinLocGrp";
+createNode transform -n "chin01_Loc" -p "chinLoc01";
+	setAttr ".t" -type "double3" 0 -0.37325938745398174 -0.82948339322816933 ;
+createNode locator -n "chin01_LocShape" -p "chin01_Loc";
+	setAttr -k off ".v";
+	setAttr ".ove" yes;
+	setAttr ".ovc" 21;
+	setAttr ".los" -type "double3" 0.15 0.15 0.15 ;
+createNode transform -n "chin02_Loc" -p "chinLoc01";
+	setAttr ".t" -type "double3" 0 -2.2496597640986087 2.0292608552915432 ;
+createNode locator -n "chin02_LocShape" -p "chin02_Loc";
+	setAttr -k off ".v";
+	setAttr ".ove" yes;
+	setAttr ".ovc" 21;
+	setAttr ".los" -type "double3" 0.15 0.15 0.15 ;
+createNode transform -n "jaw_arrow_tail01" -p "chin02_Loc";
+createNode annotationShape -n "jaw_arrow_tail0Shape1" -p "jaw_arrow_tail01";
+	setAttr -k off ".v";
+	setAttr ".tmp" yes;
+	setAttr ".txt" -type "string" "";
+createNode pointConstraint -n "annotation1_pointConstraint1" -p "jaw_arrow_tail01";
+	addAttr -k true -sn "w0" -ln "chin01_LocW0" -bt "W000" -dv 1 -min 0 -at "double";
+	setAttr -k on ".nds";
+	setAttr -k off ".v";
+	setAttr -k off ".tx";
+	setAttr -k off ".ty";
+	setAttr -k off ".tz";
+	setAttr -k off ".rx";
+	setAttr -k off ".ry";
+	setAttr -k off ".rz";
+	setAttr -k off ".sx";
+	setAttr -k off ".sy";
+	setAttr -k off ".sz";
+	setAttr ".erp" yes;
+	setAttr ".rst" -type "double3" 0 1.7619483606153987 -2.9055445460188816 ;
+	setAttr -k on ".w0";
+createNode transform -n "tongueConstructionGrp" -p "jointCtrlGrp";
+createNode transform -n "tongueLocGrp" -p "tongueConstructionGrp";
+createNode transform -n "tongueLoc01" -p "tongueLocGrp";
+createNode transform -n "tongue_01_Loc" -p "tongueLoc01";
+	setAttr ".t" -type "double3" 0 -0.9236455296456354 0.24031132694698254 ;
+createNode locator -n "tongue_01_LocShape" -p "tongue_01_Loc";
+	setAttr -k off ".v";
+	setAttr ".ove" yes;
+	setAttr ".ovc" 6;
+	setAttr ".los" -type "double3" 0.15 0.15 0.15 ;
+createNode transform -n "tongue_02_Loc" -p "tongueLoc01";
+	setAttr ".t" -type "double3" 0 -0.80266959620176648 0.65666074902223948 ;
+createNode locator -n "tongue_02_LocShape" -p "tongue_02_Loc";
+	setAttr -k off ".v";
+	setAttr ".ove" yes;
+	setAttr ".ovc" 6;
+	setAttr ".los" -type "double3" 0.15 0.15 0.15 ;
+createNode transform -n "tongue_arrow_tail01" -p "tongue_02_Loc";
+createNode annotationShape -n "tongue_arrow_tail0Shape1" -p "tongue_arrow_tail01";
+	setAttr -k off ".v";
+	setAttr ".tmp" yes;
+	setAttr ".txt" -type "string" "";
+createNode pointConstraint -n "tongue_arrow_tail01_pointConstraint1" -p "tongue_arrow_tail01";
+	addAttr -k true -sn "w0" -ln "tongue_01_LocW0" -bt "W000" -dv 1 -min 0 
+		-at "double";
+	setAttr -k on ".nds";
+	setAttr -k off ".v";
+	setAttr -k off ".tx";
+	setAttr -k off ".ty";
+	setAttr -k off ".tz";
+	setAttr -k off ".rx";
+	setAttr -k off ".ry";
+	setAttr -k off ".rz";
+	setAttr -k off ".sx";
+	setAttr -k off ".sy";
+	setAttr -k off ".sz";
+	setAttr ".erp" yes;
+	setAttr ".rst" -type "double3" 0 -0.12097593344386892 -0.41634942207525694 ;
+	setAttr -k on ".w0";
+createNode transform -n "tongue_03_Loc" -p "tongueLoc01";
+	setAttr ".t" -type "double3" 0 -0.82250977500394418 1.1105115440581419 ;
+createNode locator -n "tongue_03_LocShape" -p "tongue_03_Loc";
+	setAttr -k off ".v";
+	setAttr ".ove" yes;
+	setAttr ".ovc" 6;
+	setAttr ".los" -type "double3" 0.15 0.15 0.15 ;
+createNode transform -n "tongue_arrow_tail02" -p "tongue_03_Loc";
+	setAttr ".t" -type "double3" 0 0.019840178802177699 -0.45385079503590242 ;
+createNode annotationShape -n "tongue_arrow_tail0Shape2" -p "tongue_arrow_tail02";
+	setAttr -k off ".v";
+	setAttr ".tmp" yes;
+	setAttr ".txt" -type "string" "";
+createNode transform -n "tongue_04_Loc" -p "tongueLoc01";
+	setAttr ".t" -type "double3" 0 -0.88760399469864359 1.5473479779038437 ;
+createNode locator -n "tongue_04_LocShape" -p "tongue_04_Loc";
+	setAttr -k off ".v";
+	setAttr ".ove" yes;
+	setAttr ".ovc" 6;
+	setAttr ".los" -type "double3" 0.15 0.15 0.15 ;
+createNode transform -n "tongue_arrow_tail03" -p "tongue_04_Loc";
+	setAttr ".t" -type "double3" 0 0.065094219694699418 -0.43683643384570159 ;
+createNode annotationShape -n "tongue_arrow_tail0Shape3" -p "tongue_arrow_tail03";
+	setAttr -k off ".v";
+	setAttr ".tmp" yes;
+	setAttr ".txt" -type "string" "";
+createNode transform -n "tongue_05_Loc" -p "tongueLoc01";
+	setAttr ".t" -type "double3" 0 -0.98393232918767781 1.8950501206104495 ;
+createNode locator -n "tongue_05_LocShape" -p "tongue_05_Loc";
+	setAttr -k off ".v";
+	setAttr ".ove" yes;
+	setAttr ".ovc" 6;
+	setAttr ".los" -type "double3" 0.15 0.15 0.15 ;
+createNode transform -n "tongue_arrow_tail04" -p "tongue_05_Loc";
+	setAttr ".t" -type "double3" 0 0.096328334489034217 -0.34770214270660582 ;
+createNode annotationShape -n "tongue_arrow_tail0Shape4" -p "tongue_arrow_tail04";
+	setAttr -k off ".v";
+	setAttr ".tmp" yes;
+	setAttr ".txt" -type "string" "";
+createNode transform -n "goalCtrlGrp" -p "faceCtrlGrp";
+	setAttr ".t" -type "double3" 0 -5.5511151231257827e-017 0 ;
+createNode transform -n "subCtrlGrp" -p "faceCtrlGrp";
+	setAttr ".t" -type "double3" 0 -5.5511151231257827e-017 0 ;
+createNode transform -n "Adjuster";
+	setAttr ".rp" -type "double3" 0 -0.40155093941284381 -1.5168361851052152 ;
+	setAttr ".sp" -type "double3" 0 -0.40155093941284381 -1.5168361851052152 ;
+createNode nurbsCurve -n "AdjusterShape" -p "Adjuster";
+	setAttr -k off ".v";
+	setAttr ".ove" yes;
+	setAttr ".ovc" 17;
+	setAttr ".cc" -type "nurbsCurve" 
+		3 8 2 no 3
+		13 -2 -1 0 1 2 3 4 5 6 7 8 9 10
+		11
+		3.3204049655010004 3.7705062911700029 -1.5168361851052132
+		-5.3573026653018582e-016 5.1458630604514886 -1.5168361851052128
+		-3.3204049655009982 3.7705062911700056 -1.5168361851052132
+		-4.6957617347824803 0.45010132566901195 -1.516836185105215
+		-3.3204049655009982 -2.8703036398319863 -1.5168361851052168
+		-1.4149246537317026e-015 -4.2456604091134702 -1.5168361851052172
+		3.3204049655009951 -2.8703036398319872 -1.5168361851052168
+		4.6957617347824803 0.45010132566900796 -1.516836185105215
+		3.3204049655010004 3.7705062911700029 -1.5168361851052132
+		-5.3573026653018582e-016 5.1458630604514886 -1.5168361851052128
+		-3.3204049655009982 3.7705062911700056 -1.5168361851052132
+		;
+
+connectAttr "Leye_arrow_tail_pointConstraint1.ctx" "Leye_arrow_tail.tx";
+connectAttr "Leye_arrow_tail_pointConstraint1.cty" "Leye_arrow_tail.ty";
+connectAttr "Leye_arrow_tail_pointConstraint1.ctz" "Leye_arrow_tail.tz";
+connectAttr "eye_L_LocShape.wm" "Leye_arrow_tailShape.dom" -na;
+connectAttr "Leye_arrow_tail.pim" "Leye_arrow_tail_pointConstraint1.cpim";
+connectAttr "Leye_arrow_tail.rp" "Leye_arrow_tail_pointConstraint1.crp";
+connectAttr "Leye_arrow_tail.rpt" "Leye_arrow_tail_pointConstraint1.crt";
+connectAttr "faceRoot.t" "Leye_arrow_tail_pointConstraint1.tg[0].tt";
+connectAttr "faceRoot.rp" "Leye_arrow_tail_pointConstraint1.tg[0].trp";
+connectAttr "faceRoot.rpt" "Leye_arrow_tail_pointConstraint1.tg[0].trt";
+connectAttr "faceRoot.pm" "Leye_arrow_tail_pointConstraint1.tg[0].tpm";
+connectAttr "Leye_arrow_tail_pointConstraint1.w0" "Leye_arrow_tail_pointConstraint1.tg[0].tw"
+		;
+connectAttr "Reye_arrow_tail_pointConstraint1.ctx" "Reye_arrow_tail.tx";
+connectAttr "Reye_arrow_tail_pointConstraint1.cty" "Reye_arrow_tail.ty";
+connectAttr "Reye_arrow_tail_pointConstraint1.ctz" "Reye_arrow_tail.tz";
+connectAttr "eye_R_LocShape.wm" "Reye_arrow_tailShape.dom" -na;
+connectAttr "Reye_arrow_tail.pim" "Reye_arrow_tail_pointConstraint1.cpim";
+connectAttr "Reye_arrow_tail.rp" "Reye_arrow_tail_pointConstraint1.crp";
+connectAttr "Reye_arrow_tail.rpt" "Reye_arrow_tail_pointConstraint1.crt";
+connectAttr "faceRoot.t" "Reye_arrow_tail_pointConstraint1.tg[0].tt";
+connectAttr "faceRoot.rp" "Reye_arrow_tail_pointConstraint1.tg[0].trp";
+connectAttr "faceRoot.rpt" "Reye_arrow_tail_pointConstraint1.tg[0].trt";
+connectAttr "faceRoot.pm" "Reye_arrow_tail_pointConstraint1.tg[0].tpm";
+connectAttr "Reye_arrow_tail_pointConstraint1.w0" "Reye_arrow_tail_pointConstraint1.tg[0].tw"
+		;
+connectAttr "annotation1_pointConstraint1.ctx" "jaw_arrow_tail01.tx";
+connectAttr "annotation1_pointConstraint1.cty" "jaw_arrow_tail01.ty";
+connectAttr "annotation1_pointConstraint1.ctz" "jaw_arrow_tail01.tz";
+connectAttr "chin02_LocShape.wm" "jaw_arrow_tail0Shape1.dom" -na;
+connectAttr "jaw_arrow_tail01.pim" "annotation1_pointConstraint1.cpim";
+connectAttr "jaw_arrow_tail01.rp" "annotation1_pointConstraint1.crp";
+connectAttr "jaw_arrow_tail01.rpt" "annotation1_pointConstraint1.crt";
+connectAttr "chin01_Loc.t" "annotation1_pointConstraint1.tg[0].tt";
+connectAttr "chin01_Loc.rp" "annotation1_pointConstraint1.tg[0].trp";
+connectAttr "chin01_Loc.rpt" "annotation1_pointConstraint1.tg[0].trt";
+connectAttr "chin01_Loc.pm" "annotation1_pointConstraint1.tg[0].tpm";
+connectAttr "annotation1_pointConstraint1.w0" "annotation1_pointConstraint1.tg[0].tw"
+		;
+connectAttr "tongue_arrow_tail01_pointConstraint1.ctx" "tongue_arrow_tail01.tx";
+connectAttr "tongue_arrow_tail01_pointConstraint1.cty" "tongue_arrow_tail01.ty";
+connectAttr "tongue_arrow_tail01_pointConstraint1.ctz" "tongue_arrow_tail01.tz";
+connectAttr "tongue_02_LocShape.wm" "tongue_arrow_tail0Shape1.dom" -na;
+connectAttr "tongue_arrow_tail01.pim" "tongue_arrow_tail01_pointConstraint1.cpim"
+		;
+connectAttr "tongue_arrow_tail01.rp" "tongue_arrow_tail01_pointConstraint1.crp";
+connectAttr "tongue_arrow_tail01.rpt" "tongue_arrow_tail01_pointConstraint1.crt"
+		;
+connectAttr "tongue_01_Loc.t" "tongue_arrow_tail01_pointConstraint1.tg[0].tt";
+connectAttr "tongue_01_Loc.rp" "tongue_arrow_tail01_pointConstraint1.tg[0].trp";
+connectAttr "tongue_01_Loc.rpt" "tongue_arrow_tail01_pointConstraint1.tg[0].trt"
+		;
+connectAttr "tongue_01_Loc.pm" "tongue_arrow_tail01_pointConstraint1.tg[0].tpm";
+connectAttr "tongue_arrow_tail01_pointConstraint1.w0" "tongue_arrow_tail01_pointConstraint1.tg[0].tw"
+		;
+connectAttr "tongue_03_LocShape.wm" "tongue_arrow_tail0Shape2.dom" -na;
+connectAttr "tongue_04_LocShape.wm" "tongue_arrow_tail0Shape3.dom" -na;
+connectAttr "tongue_05_LocShape.wm" "tongue_arrow_tail0Shape4.dom" -na;
+
+createNode transform -n "subLocGrp" -p "subCtrlGrp";
+
+//Extra Editing
+parentConstraint -mo -weight 1 "faceRoot" "jointCtrlGrp";
+scaleConstraint -offset 1 1 1 -weight 1 "faceRoot" "jointCtrlGrp";
+
+parentConstraint -mo -weight 1 "faceRoot" "goalCtrlGrp";
+
+
+scaleConstraint -offset 1 1 1 -weight 1 "faceRoot" "goalCtrlGrp";
+
+parentConstraint -mo -weight 1 "faceRoot" "subCtrlGrp";
+scaleConstraint -offset 1 1 1 -weight 1 "faceRoot" "subCtrlGrp";
+
+string $pcNodes[] = `parentConstraint -mo -weight 1 "Adjuster" "rootCtrlGrp"`;
+string $scNodes[] = `scaleConstraint -offset 1 1 1 -weight 1 "Adjuster" "rootCtrlGrp"`;
+
+parent $pcNodes[0] $scNodes[0] "Adjuster";
+
+createNode "transform" -n "headSkinJntGrp" -p "jointCtrlGrp";
+select -r "headSkinJntGrp";
+joint -n "headSkinJnt";
+setAttr "headSkinJntGrp.translateY" -0.402;
+setAttr "headSkinJntGrp.translateZ" -1.517;
+
+spaceLocator -p 0 0 0 -n "subCtrlOrienter";
+parent subCtrlOrienter faceRoot ;
+setAttr "subCtrlOrienter.translateZ" 0;
+setAttr "subCtrlOrienter.translateY" 0;
+
+hide "faceRoot";
+select -r "Adjuster";
+return "faceCtrlGrp";
+}

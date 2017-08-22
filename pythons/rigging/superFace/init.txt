@@ -1,0 +1,13 @@
+// Maya.env
+
+MAYA_SCRIPT_PATH = \\server-01\WorkflowTools\workflow\LittleTools\superFace\scripts;
+
+PYTHONPATH = \\server-01\WorkflowTools\workflow\LittleTools\superFace;
+
+
+
+
+'''
+import superFace as sf
+start = sf.main()
+'''

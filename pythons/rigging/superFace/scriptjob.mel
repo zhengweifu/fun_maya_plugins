@@ -1,0 +1,8 @@
+global proc scriptjob(string $ui){
+    scriptJob -runOnce 1 -parent $ui -event "NewSceneOpened" "sfRefreshUI()";
+    //scriptJob -runOnce 1 -event "NewSceneOpened" "sfRefreshUI()";
+    }
+
+global proc sfRefreshUI(){
+    python("import superFace as sf;start = sf.main()");
+    }
