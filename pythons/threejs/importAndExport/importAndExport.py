@@ -110,8 +110,11 @@ class ImportAndExport(object):
                 'uuid': str(uuid.uuid3(uuid.NAMESPACE_DNS, `time.time()`))
             }
 
-            if not cmds.getAttr('%s.visibility'%self.getName(_transform, _dagPath, False)):
-                _object['visible'] = False
+            try: 
+                if not cmds.getAttr('%s.visibility'%self.getName(_transform, _dagPath, False)):
+                    _object['visible'] = False
+            except Exception, e:
+                print e.message
 
             _matrix = _transform.transformation().asMatrix()
             if _matrix != om.MMatrix.identity:
@@ -259,7 +262,7 @@ class ImportAndExport(object):
                         _materialObject['color'] = [_diffuse, _diffuse, _diffuse]
 
                     if 'specularMap' in _materialObject:
-                        _materialObject['color'] = [_specular, _specular, _specular]
+                        _materialObject['specular'] = [_specular, _specular, _specular]
 
                     # side
                     if cmds.objExists('%s.side'%_pMaterial) and _pMaterial.getAttr('side') != 0:
@@ -292,7 +295,7 @@ class ImportAndExport(object):
     '''输出保存project文件'''           
     def writeProject(self, url, isPutty = True):
         extraTypeNames = ['textManip2D', 'xformManip', 'translateManip', 'cubeManip', 'objectSet']
-        extraNames = ['groundPlane_transform', 'persp', 'top', 'front', 'side']
+        extraNames = ['groundPlane_transform', 'persp', 'top', 'front', 'side', 'shaderBallCamera1', 'shaderBallGeom1', 'MayaMtlView_KeyLight1', 'MayaMtlView_FillLight1', 'MayaMtlView_RimLight1']
         tObjects = []
         dagIterator = om.MItDag(om.MItDag.kBreadthFirst, om.MFn.kInvalid);
         while not dagIterator.isDone():
@@ -304,13 +307,14 @@ class ImportAndExport(object):
                     _child = dagPath.child(i)
                     if _child.hasFn(om.MFn.kTransform):
                         _transform = om.MFnTransform(_child)
+                        print _transform.typeName(), _transform.name()
                         if _transform.typeName() not in extraTypeNames and _transform.name() not in extraNames:
                             # print _transform.name()
                             tObjects.append(_child)
                 break
 
         self.projectPath = url
-
+        print tObjects
         for tObject in tObjects:
             self.loopFind(tObject, self.objectTree)
             # print mTransform.child(0).apiType()
