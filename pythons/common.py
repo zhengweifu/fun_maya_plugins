@@ -1,4 +1,5 @@
 import maya.OpenMaya as om
+import hashlib
 
 class Common(object):
     @classmethod
@@ -45,3 +46,33 @@ class Common(object):
     @classmethod
     def listMultiplyValue(self, l, v):
         return [x * v for x in l]
+    @classmethod
+    def fileSha1(self, url):
+        with open(url, 'rb') as f:
+            sha1obj = hashlib.sha1()
+            sha1obj.update(f.read())
+            hash = sha1obj.hexdigest()
+            # print(hash)
+            return hash
+    @classmethod
+    def sha1(self, content):
+        sha1obj = hashlib.sha1()
+        sha1obj.update(content)
+        hash = sha1obj.hexdigest()
+        # print(hash)
+        return hash
+    @classmethod
+    def fileMD5(self, url):
+        with open(url, 'rb') as f:
+            md5obj = hashlib.md5()
+            md5obj.update(f.read())
+            hash = md5obj.hexdigest()
+            # print(hash)
+            return hash
+    @classmethod
+    def MD5(self, content):
+        md5obj = hashlib.md5()
+        md5obj.update(content)
+        hash = md5obj.hexdigest()
+        # print(hash)
+        return hash

@@ -64,14 +64,17 @@ class ImportAndExport(object):
                     if _input not in self.textureName2UUID:
                         if not os.path.isdir(copyFolder):
                             os.makedirs(copyFolder)
-                        shutil.copy(_textureUrl, copyFolder)
+                        _fileMD5 = common.Common.fileMD5(_textureUrl)
+                        # print _fileMD5
+                        _newFile = _fileMD5 + os.path.splitext(_textureUrl)[1]
+                        shutil.copy(_textureUrl, os.path.join(copyFolder, _newFile))
                         _uuidTex = str(uuid.uuid3(uuid.NAMESPACE_DNS, `time.time()`))
                         materialObject[distProp] = _uuidTex
                         self.textureName2UUID[_input] = _uuidTex
                         # print ;
                         _textureObject = {
                            'uuid': _uuidTex, 
-                           'url': './textures/' + os.path.basename(_textureUrl),
+                           'url': './textures/' + _newFile,
                            'wrapS': 1000, 
                            'wrapT' : 1000
                         }
@@ -172,15 +175,22 @@ class ImportAndExport(object):
             _afPath = '%s.mesh'%_afName
             _projectFolder = os.path.dirname(self.projectPath) # This is folder for project file
             _meshFolder = _projectFolder + '/meshes/' # This is folder for mesh file
+
             # Create non-existent folders
             if not os.path.isdir(_meshFolder):
                 os.makedirs(_meshFolder)
 
             # Save a .mesh file
-            self.meshFileManager.write(_meshFolder + _afPath)
+            _meshUrl = _meshFolder + _afPath;
+            self.meshFileManager.write(_meshUrl)
             self.meshFileManager.init()
 
-            self.geometries.append({'uuid': _uuidGeo, 'url': './meshes/' + _afPath});
+            _meshMD5 = common.Common.fileMD5(_meshUrl);
+            _newMeshFile = _meshMD5 + '.mesh';
+
+            os.rename(_meshUrl, _meshFolder + _newMeshFile);
+
+            self.geometries.append({'uuid': _uuidGeo, 'url': './meshes/' + _newMeshFile});
 
             _numInstances = _mesh.parentCount()
 
@@ -329,7 +339,7 @@ class ImportAndExport(object):
             'object': self.objectTree
         }
         if isPutty:
-            _outputJson = json.dumps(_outputTree, sort_keys = True, indent = 4, separators = (',', ': '))
+            _outputJson = json.dumps(_outputTree, sort_keys = True, indent = 2, separators = (',', ': '))
         else:
             _outputJson = json.dumps(_outputTree,separators = (',', ':'))
 
@@ -367,6 +377,14 @@ class ImportAndExport(object):
     def _exportProject(self, argas):
         project_paths = self._export("Project (*.project)")
         if project_paths:
+            _pFolder = os.path.dirname(project_paths[0])
+            _pSubs = os.listdir(_pFolder)
+            try:
+                for _pSub in _pSubs:
+                    if _pSub != 'cover.jpg':
+                        shutil.rmtree(os.path.join(_pFolder, _pSub))
+            except Exception, e:
+                print e.message
             self.writeProject(project_paths[0])
             print "Export project finish."
         # self.writeProject('d:/documents/maya/outpro/test.project')
