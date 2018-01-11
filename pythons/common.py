@@ -76,3 +76,10 @@ class Common(object):
         hash = md5obj.hexdigest()
         # print(hash)
         return hash
+
+    @classmethod
+    def MD532ToUUID(self, md5):
+        if len(md5) == 32:
+            return '-'.join([md5[:8], md5[8:12], md5[12:16], md5[16:20], md5[20:32]])
+        else:
+            return md5
