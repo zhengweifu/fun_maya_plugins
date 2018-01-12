@@ -10,6 +10,7 @@ class WorldFileManager(object):
     '''初始化方法'''
     def __init__(self):
         self.geoFileManager = geoFileManager.GeoFileManager();
+        self.remove_old_data = False
         self.use_md5_name = True
         self.out_uv = True
         self.out_normal = True
@@ -46,6 +47,12 @@ class WorldFileManager(object):
             cmds.addAttr(obj, ln = 'lightMapG', at = 'double', p = 'lightMap')
             cmds.addAttr(obj, ln = 'lightMapB', at = 'double', p = 'lightMap')
             cmds.addAttr(obj, ln = "lightMapIntensity", at = 'double', min = 0, max = 1, dv = 1)
+
+        if not cmds.objExists('%s.static'%obj):
+            cmds.addAttr(obj, ln = 'static', at = 'bool')
+
+        if not cmds.objExists('%s.typeid'%obj):
+            cmds.addAttr(obj, ln = 'typeid', dt = 'string')
 
     def addAttrsForMesh(self, argas):
         objs = cmds.ls(type = "mesh")
@@ -189,7 +196,7 @@ class WorldFileManager(object):
 
             treeParent['name'] = _afName
             _afPath = '%s.mesh'%_afName
-            _projectFolder = os.path.join(os.path.dirname(self.projectPath), 'elements')  # This is folder for project file
+            _projectFolder = os.path.join(os.path.dirname(self.projectPath), 'worlds')  # This is folder for project file
             # Create non-existent folders
             if not os.path.isdir(_projectFolder):
                 os.makedirs(_projectFolder)
@@ -217,6 +224,7 @@ class WorldFileManager(object):
             _uuidGeo = common.Common.MD532ToUUID(_meshMD5)
             treeParent['geometry'] = _uuidGeo
 
+            # export lightMap
             _texFolder = os.path.realpath(os.path.join(_projectFolder, '../textures'));
             _intputObject = {"parameters": {}}
             _pNode = pm.PyNode(_afName)
@@ -228,6 +236,18 @@ class WorldFileManager(object):
             if _intputObject.has_key('textures'):
                 for _tex in _intputObject["textures"]:
                     self.textures[_tex] = _intputObject["textures"][_tex]
+
+            # export static attr
+            if cmds.objExists('%s.static'%_pNode):
+                _staticAttr = _pNode.getAttr('static')
+                if _staticAttr:
+                    treeParent['static'] = _staticAttr
+
+            # export typeid attr
+            if cmds.objExists('%s.typeid'%_pNode):
+                _typeidAttr = _pNode.getAttr('typeid')
+                if _typeidAttr:
+                    treeParent['typeid'] = _typeidAttr
 
             self.geometries[_uuidGeo] = {'url': '../meshes/' + _newMeshFile};
 
@@ -387,7 +407,7 @@ class WorldFileManager(object):
         for tObject in tObjects:
             self.loopFind(tObject, self.objectTree)
             # print mTransform.child(0).apiType()
-        print self.textures
+        # print self.textures
         _outputTree = {
             "metadata": {
                 "version": 1.0,
@@ -399,12 +419,12 @@ class WorldFileManager(object):
             'object': self.objectTree
         }
         if isPutty:
-            _outputJson = json.dumps(_outputTree, sort_keys = True, indent = 2, separators = (',', ': '))
+            _outputJson = json.dumps(_outputTree, indent = 2, separators = (',', ': '))
         else:
             _outputJson = json.dumps(_outputTree,separators = (',', ':'))
-        print _outputJson
+        # print _outputJson
         if self.use_md5_name:
-            url = os.path.join(os.path.dirname(url), 'elements', common.Common.MD5(_outputJson) + os.path.splitext(url)[1])
+            url = os.path.join(os.path.dirname(url), 'worlds', common.Common.MD5(_outputJson) + os.path.splitext(url)[1])
 
         _f = open(url, 'w')
         try:
@@ -427,9 +447,10 @@ class WorldFileManager(object):
         cmds.button(label="import mesh", c=self.geoFileManager._import)
         cmds.setParent('..')
         export_column = cmds.columnLayout(adj=True)
-        self.use_md5_cb = cmds.checkBox(label='use md5 name', value=True)
-        self.uv_cb = cmds.checkBox(label='export uvs', value=True)
-        self.normal_cb = cmds.checkBox(label='export normals', value=True)
+        self.remove_old_data_cb = cmds.checkBox(label='remove old data', value=self.remove_old_data)
+        self.use_md5_cb = cmds.checkBox(label='use md5 name', value=self.use_md5_name)
+        self.uv_cb = cmds.checkBox(label='export uvs', value=self.out_uv)
+        self.normal_cb = cmds.checkBox(label='export normals', value=self.out_normal)
         # cmds.button(label="export all meshes", c=self.geoFileManager._exportAll)
         # cmds.button(label="export selected meshes", c=self.geoFileManager._exportSelected)
         # cmds.button(label="add need attrs", c=self.addNeedAttrs)
@@ -442,16 +463,17 @@ class WorldFileManager(object):
     def _exportProject(self, argas):
         project_paths = self._export("World (*.world)")
         if project_paths:
-            _pFolder = os.path.dirname(project_paths[0])
-            _pSubs = os.listdir(_pFolder)
-            try:
-                for _pSub in _pSubs:
-                    if _pSub != 'cover.jpg':
-                        shutil.rmtree(os.path.join(_pFolder, _pSub))
-            except Exception, e:
-                print e.message
-
             _projectUrl = project_paths[0]
+
+            if self.remove_old_data:
+                _pFolder = os.path.dirname(_projectUrl)
+                _pSubs = os.listdir(_pFolder)
+                try:
+                    for _pSub in _pSubs:
+                        if _pSub != 'cover.jpg':
+                            shutil.rmtree(os.path.join(_pFolder, _pSub))
+                except Exception, e:
+                    print e.message
 
             self.writeProject(_projectUrl)
             print "Export project finish."
@@ -460,6 +482,7 @@ class WorldFileManager(object):
 
     def _export(self, filter = "Geo (*.geo)"):
         paths = cmds.fileDialog2(fileFilter=filter, dialogStyle=2)
+        self.remove_old_data = cmds.checkBox(self.remove_old_data_cb, q = True, v = True)
         self.use_md5_name = cmds.checkBox(self.use_md5_cb, q = True, v=True)
         self.out_uv = cmds.checkBox(self.uv_cb, q = True, v=True)
         self.out_normal = cmds.checkBox(self.normal_cb, q = True, v=True)
