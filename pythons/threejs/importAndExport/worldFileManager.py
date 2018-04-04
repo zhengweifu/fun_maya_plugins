@@ -4,6 +4,7 @@ import maya.OpenMaya as om
 import maya.cmds as cmds
 import geoFileManager, common, uuid, time, json, os, shutil, math
 import pymel.core as pm
+import maya.mel as mel
 reload(common)
 reload(geoFileManager)
 class WorldFileManager(object):
@@ -14,18 +15,24 @@ class WorldFileManager(object):
         self.use_md5_name = True
         self.out_uv = True
         self.out_normal = True
+        self.geo_space_is_local = True
+        self.out_new_shader_type = True
+        self.out_compression = True
+        self.outputNodes = []
         self.init()
 
     def init(self):
         self.geoFileManager.out_uv = self.out_uv
-        self.geoFileManager.out_normal= self.out_normal
+        self.geoFileManager.out_normal = self.out_normal
+        self.geoFileManager.space_is_local = self.geo_space_is_local
         self.geometries = {}
         self.materials = {}
         self.materialName2UUID = {}
         self.textures = {}
         self.textureName2UUID = {}
         self.faceMaterials = []
-        self.objectTree = {'type': 'Group', 'children': [], 'uuid': common.Common.MD532ToUUID(common.Common.MD5(cmds.file(q = True, sn = True)))}
+        self.outputNodes = []
+        self.objectTree = {'type': 0, 'children': [], 'uuid': common.Common.MD532ToUUID(common.Common.MD5(cmds.file(q = True, sn = True)))}
 
     def addNeedAttrs(self, argas):
         mats = cmds.ls(mat = True)
@@ -58,6 +65,19 @@ class WorldFileManager(object):
         objs = cmds.ls(type = "mesh")
         for obj in objs:
             self.addAttrs(obj);
+
+    def addOutputNode(self, argas):
+        output_node = pm.createNode( 'transform', n='OUTPUT_NODE1' )
+        pm.addAttr(output_node, ln = 'isExport', at = 'bool')
+        pm.addAttr(output_node, ln = 'elementId', dt = 'string')
+
+    def getOutputNode(self):
+        _transforms = pm.ls(tr = 1, v = 1)
+        for _transform in _transforms:
+            if not pm.parent(_transform) and pc.listRelatives(_transform) and pm.objExists('%s.isExport'%_transform) and pm.getAttr('%s.isExport'%_transform):
+                print _transform
+                self.outputNodes.append(_transform)
+
             
     def intoTexture(self, copyFolder, inputObject, pNode, srcProp, distProp, outTextureFolder = './textures/'):
         # print pNode.attr(srcProp).inputs()
@@ -91,9 +111,9 @@ class WorldFileManager(object):
                         # print ;
                         _textureObject = {
                            # 'uuid': _uuidTex, 
-                           'url': outTextureFolder + _newFile,
-                           'wrapS': 1000, 
-                           'wrapT' : 1000
+                           'url'   : outTextureFolder + _newFile,
+                           'wrapS' : 0, 
+                           'wrapT' : 0
                         }
 
                         # self.textures.append(_textureObject)
@@ -129,8 +149,8 @@ class WorldFileManager(object):
 
             _name = self.getName(_transform, _dagPath)
             _object = {
-                'type': 'Group',
-                'name': _name,
+                'type': 0, # Group
+                # 'name': _name,
                 # 'uuid': str(uuid.uuid3(uuid.NAMESPACE_DNS, `time.time()`))
                 'uuid': common.Common.MD532ToUUID(common.Common.MD5(_name))
             }
@@ -141,9 +161,10 @@ class WorldFileManager(object):
             except Exception, e:
                 print e.message
 
-            _matrix = _transform.transformation().asMatrix()
-            if _matrix != om.MMatrix.identity:
-                _object['matrix'] = common.Common.MMatrixToArray(_matrix)
+            if self.geo_space_is_local:
+                _matrix = _transform.transformation().asMatrix()
+                if _matrix != om.MMatrix.identity:
+                    _object['matrix'] = common.Common.MMatrixToArray(_matrix)
 
             treeParent['children'].append(_object)
 
@@ -154,7 +175,7 @@ class WorldFileManager(object):
         elif _type == om.MFn.kDirectionalLight:
             _light = om.MFnDirectionalLight(tObject)
             _color = _light.color()
-            treeParent['name'] = self.getName(_light, _dagPath)
+            # treeParent['name'] = self.getName(_light, _dagPath)
             treeParent['color'] = [_color[0], _color[1], _color[2]]
             treeParent['intensity'] = _light.intensity()
             treeParent['type'] ='DirectionalLight'
@@ -162,7 +183,7 @@ class WorldFileManager(object):
         elif _type == om.MFn.kPointLight:
             _light = om.MFnPointLight(tObject)
             _color = _light.color()
-            treeParent['name'] = self.getName(_light, _dagPath)
+            # treeParent['name'] = self.getName(_light, _dagPath)
             treeParent['color'] = [_color[0], _color[1], _color[2]]
             treeParent['intensity'] = _light.intensity()
             treeParent['type'] ='PointLight'
@@ -171,7 +192,7 @@ class WorldFileManager(object):
         elif _type == om.MFn.kSpotLight:
             _light = om.MFnSpotLight(tObject)
             _color = _light.color()
-            treeParent['name'] = self.getName(_light, _dagPath)
+            # treeParent['name'] = self.getName(_light, _dagPath)
             treeParent['color'] = [_color[0], _color[1], _color[2]]
             treeParent['intensity'] = _light.intensity()
             treeParent['type'] ='SpotLight'
@@ -181,10 +202,10 @@ class WorldFileManager(object):
         elif _type == om.MFn.kMesh:
             # _uuidGeo = str(uuid.uuid3(uuid.NAMESPACE_DNS, `time.time()`))
 
-            # _object = {'type': 'Mesh', 'geometry': _uuidGeo, 'material': ''}
+            # _object = {'type': 1, 'geometry': _uuidGeo, 'material': ''}
             # if 'children' not in treeParent:
             #     treeParent['children'] = []
-            treeParent['type'] = 'Mesh'
+            treeParent['type'] = 1 # Mesh
             # treeParent['geometry'] = _uuidGeo
 
             _mesh =  om.MFnMesh(tObject)
@@ -194,9 +215,10 @@ class WorldFileManager(object):
             # print _dagPath.fullPathName()
             _afName = self.getName(_mesh, _dagPath)
 
-            treeParent['name'] = _afName
-            _afPath = '%s.mesh'%_afName
-            _projectFolder = os.path.join(os.path.dirname(self.projectPath), 'worlds')  # This is folder for project file
+            # treeParent['name'] = _afName
+            # _afPath = '%s.geo'%_afName
+            _afPath = '%s.geo'%common.Common.Uuid()
+            _projectFolder = os.path.join(os.path.dirname(self.projectPath), 'components')  # This is folder for project file
             # Create non-existent folders
             if not os.path.isdir(_projectFolder):
                 os.makedirs(_projectFolder)
@@ -284,23 +306,23 @@ class WorldFileManager(object):
                     _specular = 1.0
                     _matTexFolder = os.path.realpath(os.path.join(_projectFolder, '../materials/textures'))
                     if _materialType == "surfaceShader":
-                        _materialObject['type'] = "Simple"
+                        _materialObject['type'] = 0 # Simple
                         _materialObject['parameters']['color'] = list(_pMaterial.getAttr('outColor'))
                         self.intoTexture(_matTexFolder, _materialObject, _pMaterial, 'outColor', 'map')
                         self.setTransparent('outTransparency', _materialObject, _pMaterial)
                     elif _materialType == "lambert":
-                        _materialObject['type'] = "MeshLambertMaterial"
+                        _materialObject['type'] = 1 # Lambert
                         self.setTransparent('transparency', _materialObject, _pMaterial)
-                        _diffuse = _pMaterial.getAttr('diffuse')
+                        # _diffuse = _pMaterial.getAttr('diffuse')
                         _materialObject['parameters']['color'] =  common.Common.listMultiplyValue(list(_pMaterial.getAttr('color')), _diffuse)
                         _materialObject['parameters']['emissive'] = list(_pMaterial.getAttr('incandescence'))
                         self.intoTexture(_matTexFolder, _materialObject, _pMaterial, 'color', 'map')
                         self.intoTexture(_matTexFolder, _materialObject, _pMaterial, 'incandescence', 'emissiveMap')
                         self.intoTexture(_matTexFolder, _materialObject, _pMaterial, 'normalCamera', 'bumpMap')
                     elif _materialType == "blinn":
-                        _materialObject['type'] = "MeshPhongMaterial"
+                        _materialObject['type'] = 2 # Phong
                         self.setTransparent('transparency', _materialObject, _pMaterial)
-                        _diffuse = _pMaterial.getAttr('diffuse')
+                        # _diffuse = _pMaterial.getAttr('diffuse')
                         _materialObject['parameters']['color'] =  common.Common.listMultiplyValue(list(_pMaterial.getAttr('color')), _diffuse)
                         _materialObject['parameters']['emissive'] = list(_pMaterial.getAttr('incandescence'))
                         self.intoTexture(_matTexFolder, _materialObject, _pMaterial, 'color', 'map')
@@ -315,9 +337,9 @@ class WorldFileManager(object):
                         self.intoTexture(_matTexFolder, _materialObject, _pMaterial, 'specularColor', 'specularMap')
                         _materialObject['parameters']['reflectivity'] = _pMaterial.getAttr('reflectivity')
                     elif _materialType == "phong":
-                        _materialObject['type'] = "MeshPhongMaterial"
+                        _materialObject['type'] = 2 # Phong
                         self.setTransparent('transparency', _materialObject, _pMaterial)
-                        _diffuse = _pMaterial.getAttr('diffuse')
+                        # _diffuse = _pMaterial.getAttr('diffuse')
                         _materialObject['parameters']['color'] =  common.Common.listMultiplyValue(list(_pMaterial.getAttr('color')), _diffuse)
                         _materialObject['parameters']['emissive'] = list(_pMaterial.getAttr('incandescence'))
                         self.intoTexture(_matTexFolder, _materialObject, _pMaterial, 'color', 'map')
@@ -327,6 +349,9 @@ class WorldFileManager(object):
                         _materialObject['parameters']['shininess'] = _pMaterial.getAttr('cosinePower')
                         self.intoTexture(_matTexFolder, _materialObject, _pMaterial, 'specularColor', 'specularMap')
                         _materialObject['parameters']['reflectivity'] = _pMaterial.getAttr('reflectivity')
+
+                    if self.out_new_shader_type:
+                        _materialObject['type'] = 3 # new shader system type
 
                     if 'map' in _materialObject['parameters']:
                         _materialObject['parameters']['color'] = [_diffuse, _diffuse, _diffuse]
@@ -352,7 +377,10 @@ class WorldFileManager(object):
                     # Create non-existent folders
                     if not os.path.isdir(_matFolder):
                         os.makedirs(_matFolder)
-                    _matContains = json.dumps(_materialObject, sort_keys = True, indent = 2, separators = (',', ': '))
+                    if not self.out_compression:
+                        _matContains = json.dumps(_materialObject, sort_keys = True, indent = 2, separators = (',', ': '))
+                    else:
+                        _matContains = json.dumps(_materialObject,separators = (',', ':'))
                     _matMD5 = common.Common.MD5(_matContains)
                     _matUrl = os.path.join(_matFolder, _matMD5 + '.mat')
                     if not os.path.isfile(_matUrl):
@@ -380,9 +408,15 @@ class WorldFileManager(object):
                 
             # treeParent['children'].append(_object)
 
+    def writeOne(self, url, top):
+        pass
+
 
     '''输出保存project文件'''           
     def writeProject(self, url, isPutty = True):
+        # 获取输出的父节点
+        self.getOutputNode()
+
         extraTypeNames = ['textManip2D', 'xformManip', 'translateManip', 'cubeManip', 'objectSet']
         extraNames = ['groundPlane_transform', 'persp', 'top', 'front', 'side', 'shaderBallCamera1', 'shaderBallGeom1', 'MayaMtlView_KeyLight1', 'MayaMtlView_FillLight1', 'MayaMtlView_RimLight1']
         tObjects = []
@@ -424,7 +458,7 @@ class WorldFileManager(object):
             _outputJson = json.dumps(_outputTree,separators = (',', ':'))
         # print _outputJson
         if self.use_md5_name:
-            url = os.path.join(os.path.dirname(url), 'worlds', common.Common.MD5(_outputJson) + os.path.splitext(url)[1])
+            url = os.path.join(os.path.dirname(url), 'components', common.Common.MD5(_outputJson) + os.path.splitext(url)[1])
 
         _f = open(url, 'w')
         try:
@@ -440,7 +474,7 @@ class WorldFileManager(object):
         if cmds.window(window_name, ex=True):
             cmds.deleteUI(window_name)
         
-        window = cmds.window(window_name, title="World File Manager", widthHeight=(300, 500))
+        window = cmds.window(window_name, title="Scene File Manager", widthHeight=(300, 500))
         cmds.columnLayout(adj=True)
         tabs = cmds.tabLayout()
         import_column = cmds.columnLayout(adj=True)
@@ -449,19 +483,27 @@ class WorldFileManager(object):
         export_column = cmds.columnLayout(adj=True)
         self.remove_old_data_cb = cmds.checkBox(label='remove old data', value=self.remove_old_data)
         self.use_md5_cb = cmds.checkBox(label='use md5 name', value=self.use_md5_name)
+        self.out_new_shader_cb = cmds.checkBox(label='out new shader type', value=self.out_new_shader_type)
+        self.out_compression_cb = cmds.checkBox(label='out compression', value=self.out_compression)
         self.uv_cb = cmds.checkBox(label='export uvs', value=self.out_uv)
         self.normal_cb = cmds.checkBox(label='export normals', value=self.out_normal)
+        self.geo_space_is_local_cb = cmds.checkBox(label='geometry use local space', value=self.geo_space_is_local)
         # cmds.button(label="export all meshes", c=self.geoFileManager._exportAll)
         # cmds.button(label="export selected meshes", c=self.geoFileManager._exportSelected)
         # cmds.button(label="add need attrs", c=self.addNeedAttrs)
+        cmds.button(label="add output node", c=self.addOutputNode)
         cmds.button(label="add attrs for mesh", c=self.addAttrsForMesh)
-        cmds.button(label="export World", c=self._exportProject)
+        cmds.button(label="export Scene", c=self._exportProject)
         cmds.setParent('..')
         cmds.tabLayout(tabs, edit=True, tabLabel=((import_column, "Import"), (export_column, "Export")))
         cmds.showWindow(window)
 
     def _exportProject(self, argas):
-        project_paths = self._export("World (*.world)")
+        # 删除历史
+        mel.eval("DeleteAllHistory")
+        self.getOutputNode()
+        return
+        project_paths = self._export("Scene (*.scene)")
         if project_paths:
             _projectUrl = project_paths[0]
 
@@ -475,8 +517,8 @@ class WorldFileManager(object):
                 except Exception, e:
                     print e.message
 
-            self.writeProject(_projectUrl)
-            print "Export project finish."
+            self.writeProject(_projectUrl, not self.out_compression)
+            print "Export world finish."
         # self.writeProject('d:/documents/maya/outpro/test.project')
         # self.writeProject('/Users/zwf/Documents/zwf/templates/outpro/test.project')
 
@@ -484,8 +526,11 @@ class WorldFileManager(object):
         paths = cmds.fileDialog2(fileFilter=filter, dialogStyle=2)
         self.remove_old_data = cmds.checkBox(self.remove_old_data_cb, q = True, v = True)
         self.use_md5_name = cmds.checkBox(self.use_md5_cb, q = True, v=True)
+        self.out_new_shader_type = cmds.checkBox(self.out_new_shader_cb, q = True, v=True)
+        self.out_compression = cmds.checkBox(self.out_compression_cb, q = True, v=True)
         self.out_uv = cmds.checkBox(self.uv_cb, q = True, v=True)
         self.out_normal = cmds.checkBox(self.normal_cb, q = True, v=True)
+        self.geo_space_is_local = cmds.checkBox(self.geo_space_is_local_cb, q = True, v=True)
         return paths
 
 def main():

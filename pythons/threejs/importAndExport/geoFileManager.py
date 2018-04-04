@@ -7,6 +7,7 @@ import struct
 class GeoFileManager(object):
     '''初始化方法'''
     def __init__(self):
+        self.space_is_local = True
         self.out_uv = True
         self.out_normal = True
         self.init()
@@ -211,13 +212,16 @@ class GeoFileManager(object):
         for uv_index in range(len(self.uvs)):
             uv_offset_list[uv_index] = len(self.uvs[uv_index]) / 2
 
-        fnMesh = om.MFnMesh(dagPath);
+        fnMesh = om.MFnMesh(dagPath)
+
         # vertice
         vertexIterator = om.MItMeshVertex(dagPath)
 
         while not vertexIterator.isDone():
-
-            p = vertexIterator.position(om.MSpace.kWorld)
+            if self.space_is_local:
+                p = vertexIterator.position(om.MSpace.kTransform)
+            else:
+                p = vertexIterator.position(om.MSpace.kWorld)
 
             self.vertices.extend([p.x, p.y, p.z])
 
@@ -237,7 +241,7 @@ class GeoFileManager(object):
 
         if hasFaceVertexUvs:
             for uvsetName in uvsetNames:
-                print _index, uvsetName
+                # print _index, uvsetName
                 if _index > 1:
                     break
                 uArray = om.MFloatArray()
@@ -257,13 +261,16 @@ class GeoFileManager(object):
         if hasFaceVertexNormals:
             normals = om.MFloatVectorArray()
 
-            fnMesh.getNormals(normals, om.MSpace.kWorld)
+            if self.space_is_local:
+                fnMesh.getNormals(normals, om.MSpace.kTransform)
+            else:
+                fnMesh.getNormals(normals, om.MSpace.kWorld)
 
             normalLength = normals.length();
 
             for enormal_idx in range(normalLength):
-
-                self.normals.extend([normals[enormal_idx].x, normals[enormal_idx].y, normals[enormal_idx].z])
+                _normal = normals[enormal_idx]
+                self.normals.extend([_normal.x, _normal.y, _normal.z])
 
 
         # Get shader index of face
@@ -385,7 +392,7 @@ class GeoFileManager(object):
                 
             # write faces info
             for face in self.faces:
-                print face
+                # print face
                 # if face == -1: #一般是没有uv或者法线
                 #     face = 0
                 # f.write(struct.pack("I", face))
@@ -482,8 +489,9 @@ class GeoFileManager(object):
         cmds.button(label="import mesh", c=self._import, enable = False)
         cmds.setParent('..')
         export_column = cmds.columnLayout(adj=True)
-        self.uv_cb = cmds.checkBox(label='export uvs', value=True)
-        self.normal_cb = cmds.checkBox(label='export normals', value=True)
+        self.uv_cb = cmds.checkBox(label='export uvs', value=self.out_uv)
+        self.normal_cb = cmds.checkBox(label='export normals', value=self.out_normal)
+        self.space_is_local_cb = cmds.checkBox(label='export local space', value=self.space_is_local)
         cmds.button(label="export all meshes", c=self._exportAll)
         cmds.button(label="export selected meshes", c=self._exportSelected)
         cmds.setParent('..')
@@ -516,13 +524,14 @@ class GeoFileManager(object):
         project_paths = self._export("Project (*.project)")
         if project_paths:
             self.writeAll()
-            print self.setDatas
+            # print self.setDatas
             self.init()
 
     def _export(self, filter = "Geo (*.geo)"):
         paths = cmds.fileDialog2(fileFilter=filter, dialogStyle=2)
         self.out_uv = cmds.checkBox(self.uv_cb, q = True, v=True)
         self.out_normal = cmds.checkBox(self.normal_cb, q = True, v=True)
+        self.space_is_local = cmds.checkBox(self.space_is_local_cb, q = True, v=True)
         return paths
 
 def main():

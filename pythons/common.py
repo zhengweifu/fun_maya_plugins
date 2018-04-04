@@ -1,5 +1,5 @@
 import maya.OpenMaya as om
-import hashlib
+import hashlib, uuid, time
 
 class Common(object):
     @classmethod
@@ -83,3 +83,7 @@ class Common(object):
             return '-'.join([md5[:8], md5[8:12], md5[12:16], md5[16:20], md5[20:32]])
         else:
             return md5
+
+    @classmethod
+    def Uuid(self):
+        str(uuid.uuid3(uuid.NAMESPACE_DNS, `time.time()`))

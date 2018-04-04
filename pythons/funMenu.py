@@ -3,6 +3,7 @@ def start():
 	funMainMenu = cmds.menu(label = 'fun.zheng', tearOff = True, parent = 'MayaWindow')
 	cmds.menuItem(label = 'modeling', subMenu = True)
 	cmds.menuItem(label = 'Checking Box', command = 'import modeling.checkModel as cm; reload(cm); cm.checkModel()')
+	cmds.menuItem(label = 'UV Smart Project', command = 'import modeling.uvCalcSmartProject as uvsmart; reload(uvsmart); uvsmart.main()')
 	cmds.setParent(funMainMenu, menu = True)
 	cmds.menuItem(label = 'animation', subMenu = True)
 	cmds.menuItem(label = 'animation panel', command = 'import animation.StartSYH_anim as s_anim; reload(s_anim); s_anim.main()')
