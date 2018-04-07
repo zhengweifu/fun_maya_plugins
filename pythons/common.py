@@ -1,6 +1,6 @@
 import maya.OpenMaya as om
 import hashlib, uuid, time
-
+import maya.cmds as cmds
 class Common(object):
     @classmethod
     def MMatrixToArray(self, mMatrix):
@@ -9,6 +9,20 @@ class Common(object):
             for j in range(4):
                 result.append(om.MScriptUtil.getDoubleArrayItem(mMatrix[i], j))
         return result
+    @classmethod
+    def GetMDagPathFromName(self, name):
+        if not cmds.objExists(name):
+            print "No object called \" %s \""%name
+            return None
+        selected = om.MSelectionList()
+        selected.add(name)
+        
+        dagPath = om.MDagPath()
+        selected.getDagPath(0, dagPath)
+        return dagPath
+    @classmethod
+    def List2ToList1(self, l):
+        return [y for x in l for y in x]
     @classmethod
     def getRelativePath(self, url, sAbs):
         url_n = url.replace("\\", "/")

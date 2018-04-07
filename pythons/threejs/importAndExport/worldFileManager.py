@@ -4,6 +4,7 @@ import maya.OpenMaya as om
 import maya.cmds as cmds
 import geoFileManager, common, uuid, time, json, os, shutil, math
 import pymel.core as pm
+import pymel.core.datatypes as dt
 import maya.mel as mel
 reload(common)
 reload(geoFileManager)
@@ -25,6 +26,9 @@ class WorldFileManager(object):
         self.geoFileManager.out_uv = self.out_uv
         self.geoFileManager.out_normal = self.out_normal
         self.geoFileManager.space_is_local = self.geo_space_is_local
+        self.initData()
+
+    def initData(self):    
         self.geometries = {}
         self.materials = {}
         self.materialName2UUID = {}
@@ -32,7 +36,7 @@ class WorldFileManager(object):
         self.textureName2UUID = {}
         self.faceMaterials = []
         self.outputNodes = []
-        self.objectTree = {'type': 0, 'children': [], 'uuid': common.Common.MD532ToUUID(common.Common.MD5(cmds.file(q = True, sn = True)))}
+        self.objectTree = {'type': 0, 'children': []}
 
     def addNeedAttrs(self, argas):
         mats = cmds.ls(mat = True)
@@ -69,12 +73,13 @@ class WorldFileManager(object):
     def addOutputNode(self, argas):
         output_node = pm.createNode( 'transform', n='OUTPUT_NODE1' )
         pm.addAttr(output_node, ln = 'isExport', at = 'bool')
+        output_node.isExport.set(True)
         pm.addAttr(output_node, ln = 'elementId', dt = 'string')
 
     def getOutputNode(self):
         _transforms = pm.ls(tr = 1, v = 1)
         for _transform in _transforms:
-            if not pm.parent(_transform) and pc.listRelatives(_transform) and pm.objExists('%s.isExport'%_transform) and pm.getAttr('%s.isExport'%_transform):
+            if not pm.parent(_transform) and pm.listRelatives(_transform) and pm.objExists('%s.isExport'%_transform) and pm.getAttr('%s.isExport'%_transform):
                 print _transform
                 self.outputNodes.append(_transform)
 
@@ -137,17 +142,15 @@ class WorldFileManager(object):
             else:
                 return dagPath.fullPathName()
 
+
     def loopFind(self, tObject, treeParent):
-        _type = tObject.apiType()
-        _dagPath = om.MDagPath()
-        # print tObject.hasFn(om.MFn.kTransform) and tObject.hasFn(om.MFn.kMesh)
-        if _type == om.MFn.kTransform:
-            _transform = om.MFnTransform(tObject)
-            # print _transform.name(), tObject.hasFn(om.MFn.kMesh)
+        _type = tObject.nodeType()
+        # _dagPath = om.MDagPath()
+        _name = tObject.name()
+        if _type == "transform":
             if 'children' not in treeParent:
                 treeParent['children'] = []
 
-            _name = self.getName(_transform, _dagPath)
             _object = {
                 'type': 0, # Group
                 # 'name': _name,
@@ -156,69 +159,50 @@ class WorldFileManager(object):
             }
 
             try: 
-                if not cmds.getAttr('%s.visibility'%self.getName(_transform, _dagPath, False)):
+                if not tObject.visibility.get():
                     _object['visible'] = False
             except Exception, e:
                 print e.message
 
             if self.geo_space_is_local:
-                _matrix = _transform.transformation().asMatrix()
-                if _matrix != om.MMatrix.identity:
-                    _object['matrix'] = common.Common.MMatrixToArray(_matrix)
+                _matrix = tObject.getMatrix(objectSpace = 1)
+                if _matrix != dt.Matrix.identity:
+                    _object['matrix'] = common.Common.List2ToList1(_matrix.data)
 
             treeParent['children'].append(_object)
 
-            _childCount = _transform.childCount()
-            for i in range(_childCount):
-                _child = _transform.child(i)
+            for _child in tObject.getChildren():
                 self.loopFind(_child, _object)
-        elif _type == om.MFn.kDirectionalLight:
-            _light = om.MFnDirectionalLight(tObject)
-            _color = _light.color()
-            # treeParent['name'] = self.getName(_light, _dagPath)
+        elif _type == "directionalLight":
+            _color = tObject.color.get()
             treeParent['color'] = [_color[0], _color[1], _color[2]]
-            treeParent['intensity'] = _light.intensity()
+            treeParent['intensity'] = tObject.intensity.get()
             treeParent['type'] ='DirectionalLight'
 
-        elif _type == om.MFn.kPointLight:
-            _light = om.MFnPointLight(tObject)
-            _color = _light.color()
-            # treeParent['name'] = self.getName(_light, _dagPath)
+        elif _type == "pointLight":
+            _color = tObject.color.get()
             treeParent['color'] = [_color[0], _color[1], _color[2]]
-            treeParent['intensity'] = _light.intensity()
+            treeParent['intensity'] = tObject.intensity.get()
             treeParent['type'] ='PointLight'
-            # _pLight = pm.PyNode(_dagPath.fullPathName())
 
-        elif _type == om.MFn.kSpotLight:
-            _light = om.MFnSpotLight(tObject)
-            _color = _light.color()
-            # treeParent['name'] = self.getName(_light, _dagPath)
+        elif _type == "spotLight":
+            _color = tObject.color.get()
             treeParent['color'] = [_color[0], _color[1], _color[2]]
-            treeParent['intensity'] = _light.intensity()
+            treeParent['intensity'] = tObject.intensity.get()
             treeParent['type'] ='SpotLight'
-            _pLight = pm.PyNode(self.getName(_light, _dagPath, False))
-            treeParent['angle'] = _pLight.getAttr('coneAngle') * math.pi / 180;
+            treeParent['angle'] = tObject.coneAngle.get() * math.pi / 180;
 
-        elif _type == om.MFn.kMesh:
-            # _uuidGeo = str(uuid.uuid3(uuid.NAMESPACE_DNS, `time.time()`))
-
-            # _object = {'type': 1, 'geometry': _uuidGeo, 'material': ''}
-            # if 'children' not in treeParent:
-            #     treeParent['children'] = []
+        elif _type == "mesh":
             treeParent['type'] = 1 # Mesh
-            # treeParent['geometry'] = _uuidGeo
-
-            _mesh =  om.MFnMesh(tObject)
+            _dagPath = common.Common.GetMDagPathFromName(_name)
+            _mesh =  om.MFnMesh(_dagPath)
             
-            om.MDagPath.getAPathTo(tObject, _dagPath)
             self.geoFileManager.setDatas(_dagPath)
-            # print _dagPath.fullPathName()
+
             _afName = self.getName(_mesh, _dagPath)
 
-            # treeParent['name'] = _afName
-            # _afPath = '%s.geo'%_afName
             _afPath = '%s.geo'%common.Common.Uuid()
-            _projectFolder = os.path.join(os.path.dirname(self.projectPath), 'components')  # This is folder for project file
+            _projectFolder = os.path.join(self.projectRoot, 'scenes')  # This is folder for project file
             # Create non-existent folders
             if not os.path.isdir(_projectFolder):
                 os.makedirs(_projectFolder)
@@ -249,7 +233,7 @@ class WorldFileManager(object):
             # export lightMap
             _texFolder = os.path.realpath(os.path.join(_projectFolder, '../textures'));
             _intputObject = {"parameters": {}}
-            _pNode = pm.PyNode(_afName)
+            _pNode = tObject
             if cmds.objExists('%s.lightMap'%_pNode):
                 self.intoTexture(_texFolder, _intputObject, _pNode, 'lightMap', 'lightMap', '../textures/')
                 if _intputObject["parameters"].has_key('lightMap'):
@@ -292,10 +276,6 @@ class WorldFileManager(object):
             for _material in _materials:
                 _materialName = om.MFnDependencyNode(_material).name()
                 if _materialName not in self.materialName2UUID:
-                    # _uuidMat = str(uuid.uuid3(uuid.NAMESPACE_DNS, `time.time()`))
-                    # # treeParent['material'] = _uuidMat
-                    # _useMaterials.append(_uuidMat)
-                    # self.materialName2UUID[_materialName] = _uuidMat
                     _pMaterial = pm.PyNode(_materialName);
                     _materialObject = {
                         'parameters': {}
@@ -405,43 +385,10 @@ class WorldFileManager(object):
             elif len(_useMaterials) > 1:
                 treeParent['material'] = _useMaterials
 
-                
-            # treeParent['children'].append(_object)
 
-    def writeOne(self, url, top):
-        pass
-
-
-    '''输出保存project文件'''           
-    def writeProject(self, url, isPutty = True):
-        # 获取输出的父节点
-        self.getOutputNode()
-
-        extraTypeNames = ['textManip2D', 'xformManip', 'translateManip', 'cubeManip', 'objectSet']
-        extraNames = ['groundPlane_transform', 'persp', 'top', 'front', 'side', 'shaderBallCamera1', 'shaderBallGeom1', 'MayaMtlView_KeyLight1', 'MayaMtlView_FillLight1', 'MayaMtlView_RimLight1']
-        tObjects = []
-        dagIterator = om.MItDag(om.MItDag.kBreadthFirst, om.MFn.kInvalid);
-        while not dagIterator.isDone():
-            dagPath = om.MDagPath()
-            dagIterator.getPath(dagPath)
-            dagIterator.next() # iterator 跳到下一个
-            if dagPath.apiType() == om.MFn.kWorld:
-                for i in range(dagPath.childCount()):
-                    _child = dagPath.child(i)
-                    if _child.hasFn(om.MFn.kTransform):
-                        _transform = om.MFnTransform(_child)
-                        # print _transform.typeName(), _transform.name()
-                        if _transform.typeName() not in extraTypeNames and _transform.name() not in extraNames:
-                            # print _transform.name()
-                            tObjects.append(_child)
-                break
-
-        self.projectPath = url
-        # print tObjects
-        for tObject in tObjects:
-            self.loopFind(tObject, self.objectTree)
-            # print mTransform.child(0).apiType()
-        # print self.textures
+    def writeOne(self, top, isPutty):
+        self.objectTree["uuid"] = common.Common.MD532ToUUID(common.Common.MD5(top.name()))
+        self.loopFind(top, self.objectTree)
         _outputTree = {
             "metadata": {
                 "version": 1.0,
@@ -456,9 +403,59 @@ class WorldFileManager(object):
             _outputJson = json.dumps(_outputTree, indent = 2, separators = (',', ': '))
         else:
             _outputJson = json.dumps(_outputTree,separators = (',', ':'))
+        
+        worldFile = ''
+        if self.use_md5_name:
+            worldFile = common.Common.MD5(_outputJson)
+        else:
+            worldFile = top.name()
+
+        componentFolder = os.path.join(self.projectRoot, 'components')
+        if not os.path.isdir(componentFolder):
+            os.makedirs(componentFolder)
+
+        url = os.path.join(componentFolder, worldFile + ".scene")
+
+
+        _f = open(url, 'w')
+        try:
+            _f.write(_outputJson)
+        finally:
+            _f.close()
+        # print _outputJson
+        self.initData()
+
+        return {"uuid": common.Common.MD532ToUUID(worldFile), "type": 2, "url" : "../components/%s.scene"%worldFile}
+
+    '''输出保存project文件'''           
+    def writeProject(self, url, isPutty = True):
+        # 获取输出的父节点
+        self.getOutputNode()
+
+        if not self.outputNodes:
+            print u"没有发现输出节点，请你检查"
+            return
+
+        self.projectRoot = os.path.dirname(url)
+        
+        _outputTree = {
+            "metadata": {
+                "version": 1.0,
+                'author': 'fun.zheng'
+            },
+            'object': {'type': 0, 'children': [], 'uuid': common.Common.MD532ToUUID(common.Common.MD5(cmds.file(q = True, sn = True)))}
+        }
+
+        for node in self.outputNodes:
+            _outputTree["object"]["children"].append(self.writeOne(node, isPutty))
+
+        if isPutty:
+            _outputJson = json.dumps(_outputTree, indent = 2, separators = (',', ': '))
+        else:
+            _outputJson = json.dumps(_outputTree,separators = (',', ':'))
         # print _outputJson
         if self.use_md5_name:
-            url = os.path.join(os.path.dirname(url), 'components', common.Common.MD5(_outputJson) + os.path.splitext(url)[1])
+            url = os.path.join(self.projectRoot, 'scenes', common.Common.MD5(_outputJson) + os.path.splitext(url)[1])
 
         _f = open(url, 'w')
         try:
@@ -501,8 +498,6 @@ class WorldFileManager(object):
     def _exportProject(self, argas):
         # 删除历史
         mel.eval("DeleteAllHistory")
-        self.getOutputNode()
-        return
         project_paths = self._export("Scene (*.scene)")
         if project_paths:
             _projectUrl = project_paths[0]
@@ -518,7 +513,7 @@ class WorldFileManager(object):
                     print e.message
 
             self.writeProject(_projectUrl, not self.out_compression)
-            print "Export world finish."
+            print u"导出完成."
         # self.writeProject('d:/documents/maya/outpro/test.project')
         # self.writeProject('/Users/zwf/Documents/zwf/templates/outpro/test.project')
 
