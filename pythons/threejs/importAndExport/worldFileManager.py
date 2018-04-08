@@ -385,7 +385,7 @@ class WorldFileManager(object):
             elif len(_useMaterials) > 1:
                 treeParent['material'] = _useMaterials
 
-
+    '''输出保存component文件'''
     def writeOne(self, top, isPutty):
         self.objectTree["uuid"] = common.Common.MD532ToUUID(common.Common.MD5(top.name()))
         self.loopFind(top, self.objectTree)
@@ -427,13 +427,55 @@ class WorldFileManager(object):
 
         return {"uuid": common.Common.MD532ToUUID(worldFile), "type": 2, "url" : "../components/%s.scene"%worldFile}
 
+    '''获取相机参数'''
+    def _getCameraParas(self):
+        _currentCamera = pm.optionMenu(self.camera_menu, q = 1, v = 1)
+        _currentCamera = pm.PyNode(_currentCamera)
+
+        if _currentCamera.exists() and _currentCamera.nodeType() == "camera":
+            _fov = _currentCamera.focalLength.get()
+            _near = _currentCamera.nearClipPlane.get()
+            _far = _currentCamera.farClipPlane.get()
+
+            _parent = _currentCamera.getParent()
+
+            _matrix = _parent.getMatrix()
+
+            _matrix = common.Common.List2ToList1(_matrix.data)
+
+            return {
+                "matrix": _matrix,
+                "fov": _fov,
+                "near": _near,
+                "far": _far
+            }
+
+        return None
+
+    '''获取系统参数'''
+    def _getSystemParas(self):
+        _linear = pm.currentUnit(q = 1, l = 1)
+        if _linear == "mm":
+            _linear = 0
+        elif _linear == "cm":
+            _linear = 1
+        elif _linear == "m":
+            _linear = 2
+        else:
+            _linear = 0
+
+        return {
+            "unit": _linear,
+            "up": pm.upAxis(q = 1, ax = 1)
+        }
+
     '''输出保存project文件'''           
     def writeProject(self, url, isPutty = True):
         # 获取输出的父节点
         self.getOutputNode()
 
         if not self.outputNodes:
-            print u"没有发现输出节点，请你检查"
+            pm.error("Not output nodes, please checked.")
             return
 
         self.projectRoot = os.path.dirname(url)
@@ -445,6 +487,13 @@ class WorldFileManager(object):
             },
             'object': {'type': 0, 'children': [], 'uuid': common.Common.MD532ToUUID(common.Common.MD5(cmds.file(q = True, sn = True)))}
         }
+        # 相机参数
+        _camera_set = self._getCameraParas()
+        if _camera_set:
+            _outputTree["camera"] = _camera_set
+        # 系统参数
+        _system_set = self._getSystemParas()
+        _outputTree["systemset"] = _system_set
 
         for node in self.outputNodes:
             _outputTree["object"]["children"].append(self.writeOne(node, isPutty))
@@ -465,6 +514,16 @@ class WorldFileManager(object):
         # print _outputJson
         self.init()
 
+    def _setCameraItems(self, argas):
+        try:
+            pm.deleteUI(self.camera_menu)
+        except:
+            pass
+        self.camera_menu = pm.optionMenu(l = "cameras", p = self.colum_camera_menu)
+        _cameras = pm.ls(type = "camera")
+        for _camera in _cameras:
+            pm.menuItem(l = _camera.name(), p = self.camera_menu)
+
     '''ui part'''
     def ui(self):
         window_name = "WORLD_FILE_MANAGER_WINDOW"
@@ -474,9 +533,9 @@ class WorldFileManager(object):
         window = cmds.window(window_name, title="Scene File Manager", widthHeight=(300, 500))
         cmds.columnLayout(adj=True)
         tabs = cmds.tabLayout()
-        import_column = cmds.columnLayout(adj=True)
-        cmds.button(label="import mesh", c=self.geoFileManager._import)
-        cmds.setParent('..')
+        # import_column = cmds.columnLayout(adj=True)
+        # cmds.button(label="import mesh", c=self.geoFileManager._import)
+        # cmds.setParent('..')
         export_column = cmds.columnLayout(adj=True)
         self.remove_old_data_cb = cmds.checkBox(label='remove old data', value=self.remove_old_data)
         self.use_md5_cb = cmds.checkBox(label='use md5 name', value=self.use_md5_name)
@@ -485,19 +544,29 @@ class WorldFileManager(object):
         self.uv_cb = cmds.checkBox(label='export uvs', value=self.out_uv)
         self.normal_cb = cmds.checkBox(label='export normals', value=self.out_normal)
         self.geo_space_is_local_cb = cmds.checkBox(label='geometry use local space', value=self.geo_space_is_local)
+        cmds.separator(style='in', h = 20)
+        self.colum_camera_menu = cmds.columnLayout(adj=True)
+        self.update_camera_menu = cmds.button(label="update cameras", c=self._setCameraItems)
+        cmds.setParent("..")
+        cmds.separator(style='in', h = 20)
         # cmds.button(label="export all meshes", c=self.geoFileManager._exportAll)
         # cmds.button(label="export selected meshes", c=self.geoFileManager._exportSelected)
         # cmds.button(label="add need attrs", c=self.addNeedAttrs)
         cmds.button(label="add output node", c=self.addOutputNode)
         cmds.button(label="add attrs for mesh", c=self.addAttrsForMesh)
+        cmds.separator(style='in', h = 20)
         cmds.button(label="export Scene", c=self._exportProject)
         cmds.setParent('..')
-        cmds.tabLayout(tabs, edit=True, tabLabel=((import_column, "Import"), (export_column, "Export")))
+        # cmds.tabLayout(tabs, edit=True, tabLabel=((import_column, "Import"), (export_column, "Export")))
+        cmds.tabLayout(tabs, edit=True, tabLabel=((export_column, "Export")))
         cmds.showWindow(window)
+
+        self._setCameraItems(None)
 
     def _exportProject(self, argas):
         # 删除历史
         mel.eval("DeleteAllHistory")
+
         project_paths = self._export("Scene (*.scene)")
         if project_paths:
             _projectUrl = project_paths[0]
