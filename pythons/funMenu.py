@@ -15,6 +15,7 @@ def start():
 	cmds.menuItem(label = 'import and export mesh', command = 'import threejs.importAndExport.meshFileManager as immesh; reload(immesh); immesh.main()')
 	cmds.menuItem(label = 'import and export geo', command = 'import threejs.importAndExport.geoFileManager as imgeo; reload(imgeo); imgeo.main()')
 	cmds.menuItem(label = 'import and export project datas', command = 'import threejs.importAndExport.importAndExport as imEx; reload(imEx); imEx.main()')
+	cmds.menuItem(label = 'JXZY Batch', command = 'import threejs.importAndExport.jxzyBatch as imjxzyb; reload(imjxzyb); imjxzyb.main()')
 	cmds.menuItem(label = 'import and export world', command = 'import threejs.importAndExport.worldFileManager as imworld; reload(imworld); imworld.main()')
 	cmds.setParent(funMainMenu, menu = True)
 	cmds.menuItem(label = 'misc', subMenu = True)
