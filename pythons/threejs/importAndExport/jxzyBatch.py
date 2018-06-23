@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 import importAndExport
 import rendering.Utils as rend_utils
-import os, uuid, time, shutil, json, sys
+import os, uuid, time, shutil, json, sys, common
 import maya.mel as mel
 import maya.cmds as cmds
 
-
+reload(common)
 reload(importAndExport)
 reload(rend_utils)
 # reload(sys)
@@ -24,24 +24,34 @@ class JXZYBatch(object):
 		cmds.file(new = 1, f = 1)
 		fbxFile = os.path.join(fbxDir, "model.FBX")
 		imageFile = os.path.join(fbxDir, "image.jpg")
+		inttrFile = os.path.join(fbxDir, "inttr.txt")
 		if os.path.isfile(fbxFile):
 			importCommand = 'file -import -type "FBX"  -ignoreVersion -ra true -mergeNamespacesOnClash false -options "fbx"  -pr "%s"'%fbxFile;
 			mel.eval(importCommand);
 			_uuid = str(uuid.uuid3(uuid.NAMESPACE_DNS, `time.time()`))
 			rend_utils.Utils.create().changeFilePath(self.textureDir, True, ".jpg")
-			_dir = os.path.join(self.outputDir, _uuid)
+			_dir = os.path.join(self.outputDir, dirName)
+			
+			# print _dir
 			if not os.path.isdir(_dir):
 				os.makedirs(_dir)
-			_pFile = os.path.join(_dir, _uuid + ".project")
+			_pFile = os.path.join(_dir, _uuid + ".project").decode('utf-8')
+			
+
 			self.imExport.writeProject(_pFile)
 			if os.path.isfile(imageFile):
 				shutil.copy(imageFile, os.path.join(_dir, "cover.jpg"))
 			_outputItem = {
 				"name": dirName,
-				"image": "assets/case/%s/cover.jpg"%_uuid,
+				"image": "assets/case/%s/cover.jpg"%dirName,
 				"introduce": u"制首乌为何首乌的炮制加工品，表面黑褐色或棕褐色，凹凸不平。质坚硬，断面角质样，棕褐色或黑色。气微，味微甘而苦涩。置干燥处，防蛀。",
-				"project": "assets/case/%s/%s.project"%(_uuid, _uuid)
+				"project": "assets/case/%s/%s.project"%(dirName, _uuid)
 			}
+
+			if os.path.isfile(inttrFile):
+				with open(inttrFile, 'r') as f:
+					_outputItem["introduce"] = common.Common.StrToUnicode(f.read())
+
 			self.output.append(_outputItem)
 
 
@@ -58,6 +68,7 @@ class JXZYBatch(object):
 		else:
 			_outputJson = json.dumps(self.output, separators = (',', ':'))
 
+		_outputJson = _outputJson.decode('raw_unicode_escape').encode('utf-8')
 		url = os.path.join(os.path.dirname(self.outputDir), 'productInfo.json')
 		_f = open(url, 'w')
 		try:
@@ -66,5 +77,5 @@ class JXZYBatch(object):
 			_f.close()
 
 def main():
-	jxzy_batch = JXZYBatch("/Users/zwf/Documents/zwf/templates/yinpian_2018-6-6/fbx", "/Users/zwf/Documents/zwf/templates/yinpian_2018-6-6/textures_jpg", "/Users/zwf/Documents/zwf/rd/web/JXZY/assets/case")
+	jxzy_batch = JXZYBatch("/Users/zwf/Documents/zwf/templates/yinpian_2018-6-12/fbx", "/Users/zwf/Documents/zwf/templates/yinpian_2018-6-12/textures_jpg", "/Users/zwf/Documents/zwf/rd/web/JXZY/assets/case")
 	jxzy_batch.batch(True)

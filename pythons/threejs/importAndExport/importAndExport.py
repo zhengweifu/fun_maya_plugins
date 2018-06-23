@@ -173,16 +173,15 @@ class ImportAndExport(object):
             # print _dagPath.fullPathName()
             _afName = self.getName(_mesh, _dagPath)
             treeParent['name'] = _afName
-            _afPath = '%s.mesh'%_afName
+            _afPath = u'%s.mesh'%_afName
             _projectFolder = os.path.dirname(self.projectPath) # This is folder for project file
             _meshFolder = _projectFolder + '/meshes/' # This is folder for mesh file
-
             # Create non-existent folders
             if not os.path.isdir(_meshFolder):
                 os.makedirs(_meshFolder)
 
             # Save a .mesh file
-            _meshUrl = os.path.join(_meshFolder, _afPath);
+            _meshUrl = _meshFolder + _afPath;
             self.meshFileManager.write(_meshUrl)
             self.meshFileManager.init()
 

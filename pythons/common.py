@@ -101,3 +101,18 @@ class Common(object):
     @classmethod
     def Uuid(self):
         str(uuid.uuid3(uuid.NAMESPACE_DNS, `time.time()`))
+
+    @classmethod
+    def StrToUnicode(self, strInput):
+        if isinstance(strInput, unicode):
+            return strInput
+
+        codes = ['utf8', 'utf-8', 'gbk']
+        
+        for c in codes:
+            try:
+                return strInput.decode(c)
+            except:
+                pass
+
+        return None
